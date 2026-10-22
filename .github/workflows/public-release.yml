@@ -151,10 +151,12 @@ jobs:
           chmod 755 "$RPM_ROOT/BUILDROOT/ufm-0.1.0-1.$RPM_ARCH/usr/bin/ufm"
           cp -r web/dist "$RPM_ROOT/BUILDROOT/ufm-0.1.0-1.$RPM_ARCH/usr/share/ufm/web"
 
-          # 配置 rpm 允许跨架构构建
-          mkdir -p ~/.rpmmacros
-          echo "%_target_os linux" >> ~/.rpmmacros
-          echo "%_target_cpu $RPM_ARCH" >> ~/.rpmmacros
+          # 配置 rpm 宏
+          rm -rf ~/.rpmmacros
+          cat << EOF > ~/.rpmmacros
+%_target_os linux
+%_target_cpu $RPM_ARCH
+EOF
 
           echo "Name: ufm" > "$RPM_ROOT/SPECS/ufm.spec"
           echo "Version: 0.1.0" >> "$RPM_ROOT/SPECS/ufm.spec"
