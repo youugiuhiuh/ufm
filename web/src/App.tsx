@@ -18,8 +18,8 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview } from './types';
-import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall } from './api';
+import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
+import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall, diagnoseLogs, exportReportMarkdown } from './api';
 import './App.css';
 
 export function App() {
@@ -66,6 +66,10 @@ export function App() {
     }
   };
 
+  // 诊断与导出状态
+  const [diagData, setDiagData] = useState<DiagnosticReportData | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
   const handleScan = async (path: string) => {
     if (!path.trim()) return;
     setLoading(true);
@@ -75,12 +79,23 @@ export function App() {
       setReport(rep);
       const compat = await evaluateCompatibility(rep);
       setCompatReport(compat);
+      const diags = await diagnoseLogs(path, rep);
+      setDiagData(diags);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
   };
+
+  const handleExportReport = async () => {
+    if (!report) return;
+    const md = await exportReportMarkdown(report, diagData || undefined);
+    navigator.clipboard.writeText(md);
+    setExportNotice("已成功复制脱敏诊断报告至剪贴板，可直接发送到 GitHub Issue 或社区求助！");
+    setTimeout(() => setExportNotice(null), 4000);
+  };
+
 
   useEffect(() => {
     // 初始加载一次默认路径
@@ -366,20 +381,55 @@ export function App() {
           {/* 故障诊断 */}
           {activeTab === 'diagnostics' && (
             <div className="diagnostics-view">
-              <div className="section-header">
-                <h3>运行日志与环境异常诊断</h3>
-                <span className="section-sub">自动扫描 preloader 日志与 Doorstop 配置文件</span>
+              <div className="section-header-row">
+                <div className="section-header">
+                  <h3>运行日志与环境异常诊断</h3>
+                  <span className="section-sub">自动扫描 preloader 日志与 Doorstop 配置文件</span>
+                </div>
+                <button className="secondary-btn export-btn" onClick={handleExportReport}>
+                  <FileText size={16} /> 导出脱敏诊断报告
+                </button>
               </div>
 
-              <div className="diag-card warning">
-                <div className="diag-header">
-                  <AlertTriangle size={18} className="text-warning" />
-                  <h4>双加载器冲突风险 (MelonLoader & BepInEx)</h4>
+              {exportNotice && (
+                <div className="alert-banner alert-success">
+                  <CheckCircle2 size={18} />
+                  <div className="alert-text">{exportNotice}</div>
                 </div>
-                <p className="diag-desc">检测到目录中既有 BepInEx 配置文件又有 MelonLoader 目录，可能导致 Assembly 加载死锁或钩子链断裂。</p>
-                <div className="diag-action">
-                  <button className="secondary-btn">备份并卸载残留冲突加载器</button>
-                </div>
+              )}
+
+              <div className="diag-cards-list">
+                {diagData?.issues.map((issue, idx) => (
+                  <div key={idx} className={`diag-card ${issue.risk_level === 'critical' ? 'danger' : 'warning'}`}>
+                    <div className="diag-header">
+                      {issue.risk_level === 'critical' ? (
+                        <XCircle size={18} className="text-danger" />
+                      ) : (
+                        <AlertTriangle size={18} className="text-warning" />
+                      )}
+                      <h4>{issue.title}</h4>
+                      <span className="diag-rule-code"><code>{issue.rule_id}</code></span>
+                    </div>
+                    <p className="diag-desc">{issue.description}</p>
+                    
+                    {issue.matched_lines.length > 0 && (
+                      <div className="diag-snippets">
+                        <span className="snippet-title">匹配到的日志 / 文件证据：</span>
+                        <pre className="snippet-box">
+                          {issue.matched_lines.join('\n')}
+                        </pre>
+                      </div>
+                    )}
+
+                    <div className="diag-fix-box">
+                      <strong>修复建议：</strong> {issue.suggested_fix}
+                    </div>
+
+                    <div className="diag-action">
+                      <button className="secondary-btn">安全备份并解决该问题</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

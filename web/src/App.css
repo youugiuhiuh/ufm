@@ -512,6 +512,31 @@
 }
 
 /* 诊断卡片 */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alert-success {
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.diag-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 .diag-card {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -521,6 +546,50 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+
+.diag-card.danger {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.diag-rule-code code {
+  background-color: var(--bg-tertiary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.diag-snippets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.snippet-title {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.snippet-box {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: var(--text-main);
+  overflow-x: auto;
+}
+
+.diag-fix-box {
+  background-color: rgba(59, 130, 246, 0.08);
+  border-left: 3px solid var(--accent-primary);
+  padding: 0.65rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
 
 .diag-header {
   display: flex;

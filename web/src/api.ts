@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview } from './types';
+import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
 
 // 检查是否运行在真正的 Tauri 桌面环境中
 export const isTauriEnvironment = (): boolean => {
@@ -153,4 +153,71 @@ export async function executeInstall(gamePath: string, buildId: string): Promise
 
   return await invoke<boolean>('execute_install', { gamePath, buildId });
 }
+
+// 5. 诊断运行日志与环境
+export async function diagnoseLogs(gamePath: string, report?: EnvironmentReport): Promise<DiagnosticReportData> {
+  if (!isTauriEnvironment()) {
+    console.log(`[UFM 诊断] 分析路径: ${gamePath}`);
+    return {
+      total_issues: 2,
+      max_risk: 'warning',
+      summary: '检测到 2 项需关注的运行环境与配置问题',
+      issues: [
+        {
+          rule_id: 'LOADER_CONFLICT_MELON_BEPINEX',
+          title: 'MelonLoader 与 BepInEx 混装共存',
+          risk_level: 'warning',
+          description: '目录中同时检测到 MelonLoader (.net6) 和 BepInEx 运行库，两者可能竞争劫持 Unity 运行时导致崩溃。',
+          matched_lines: [
+            'Found MelonLoader/net6/MelonLoader.dll',
+            'Found BepInEx/core/BepInEx.Core.dll'
+          ],
+          suggested_fix: '建议仅保留一套框架。若使用 BepInEx，请移除或备份重命名 MelonLoader 目录。',
+          references: ['https://bepinex.github.io/bepinex_docs/master/articles/advanced/troubleshooting.html']
+        },
+        {
+          rule_id: 'MULTIPLE_HOOK_DLLS',
+          title: '检测到多个代理注入钩子 (winhttp.dll / version.dll)',
+          risk_level: 'warning',
+          description: '游戏根目录下同时存在两个常用注入 DLL，可能产生多重链式拦截导致初始化死锁。',
+          matched_lines: [
+            'Found winhttp.dll (Doorstop proxy)',
+            'Found version.dll (Proxy loader)'
+          ],
+          suggested_fix: '检查并移除多余的 DLL 钩子，标准 BepInEx 仅需 winhttp.dll。',
+          references: []
+        }
+      ]
+    };
+  }
+
+  return await invoke<DiagnosticReportData>('diagnose_log', { logContent: '', report });
+}
+
+// 6. 导出脱敏报告 (Markdown 格式)
+export async function exportReportMarkdown(report: EnvironmentReport, diagnostics?: DiagnosticReportData): Promise<string> {
+  const date = new Date().toISOString().split('T')[0];
+  return `# Unity Framework Manager (UFM) 诊断与检测报告
+**导出日期：** ${date}  
+**置信度：** ${report.overall_confidence.toUpperCase()}  
+
+---
+
+## 1. 游戏环境概览
+- **Unity 版本：** ${report.unity_version?.raw || '未知'}
+- **运行时类型：** ${report.runtime_type.toUpperCase()}
+- **程序架构：** ${report.architecture.toUpperCase()}
+- **目标平台：** ${report.target_platform}
+- **已装框架：** ${report.installed_frameworks.join(', ') || '无'}
+
+---
+
+## 2. 诊断与风险发现
+${diagnostics?.issues.map(i => `### [${i.risk_level.toUpperCase()}] ${i.title}\n- **描述：** ${i.description}\n- **修复建议：** ${i.suggested_fix}`).join('\n\n') || '未发现异常'}
+
+---
+*本报告由 UFM 客户端离线生成，已自动脱敏敏感路径信息。*
+`;
+}
+
 

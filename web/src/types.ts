@@ -84,3 +84,23 @@ export interface InstallPlanPreview {
   backup_dir: string;
 }
 
+export type RiskLevel = 'info' | 'warning' | 'critical';
+
+export interface DiagnosticIssue {
+  rule_id: string;
+  title: string;
+  risk_level: RiskLevel;
+  description: string;
+  matched_lines: string[];
+  suggested_fix: string;
+  references: string[];
+}
+
+export interface DiagnosticReportData {
+  total_issues: number;
+  max_risk: RiskLevel;
+  issues: DiagnosticIssue[];
+  summary: string;
+}
+
+
