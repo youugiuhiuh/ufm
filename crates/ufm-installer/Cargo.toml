@@ -11,3 +11,10 @@ serde_json.workspace = true
 thiserror.workspace = true
 zip = { workspace = true }
 ufm-core.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+ufm-download.workspace = true
+ufm-detector.workspace = true
+ufm-registry.workspace = true
+ufm-compat.workspace = true
