@@ -38,7 +38,7 @@ jobs:
             arch: amd64
             os_kind: linux
           - name: linux-arm64
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             arch: arm64
             os_kind: linux
@@ -78,13 +78,8 @@ jobs:
         run: |
           sudo -E apt-get update -qq
           sudo -E apt-get install -y -qq rpm dpkg-dev
-          if [ "${{ matrix.platform.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            sudo -E apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          fi
 
       - name: Compile UFM Core Workspace
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build --release -p ufm-desktop --target ${{ matrix.platform.target }}
 
       - name: Build Windows MSI Installer
