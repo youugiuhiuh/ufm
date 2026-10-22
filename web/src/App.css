@@ -810,4 +810,31 @@
   font-size: 0.9rem;
 }
 
+.empty-placeholder-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4.5rem 2rem;
+  background-color: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  gap: 0.85rem;
+  color: var(--text-muted);
+}
+
+.empty-placeholder-card h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.empty-placeholder-card p {
+  max-width: 480px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+
 

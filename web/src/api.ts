@@ -9,11 +9,14 @@ export const isTauriEnvironment = (): boolean => {
 // 1. 调用 Rust 核心检测环境
 export async function detectEnvironment(gamePath: string): Promise<EnvironmentReport> {
   if (!isTauriEnvironment()) {
-    console.warn('[UFM] 非 Tauri 运行环境，使用标准模拟结果');
-    // 浏览器预览回退（展示 3D Custom Okazu Maker 的真实扫描数据）
+    console.warn('[UFM] 纯 Web 预览环境，执行前端无损模拟分析');
+    // 依据用户输入的实际目录名动态推断，不再使用固定写死名称
+    const trimmed = gamePath.replace(/[/\\]+$/, '');
+    const folderName = trimmed.split(/[/\\]/).pop() || 'UnityGame';
+    
     return {
       game_path: gamePath,
-      data_dir: `${gamePath}/3D Custom Okazu Maker_Data`,
+      data_dir: `${trimmed}/${folderName}_Data`,
       unity_version: {
         raw: "2021.3.16f1",
         major: 2021,
@@ -24,23 +27,23 @@ export async function detectEnvironment(gamePath: string): Promise<EnvironmentRe
       runtime_type: "mono",
       architecture: "x64",
       target_platform: "windows",
-      installed_frameworks: ["BepInEx", "Doorstop", "MelonLoader"],
+      installed_frameworks: ["BepInEx", "Doorstop"],
       overall_confidence: "confirmed",
       evidences: [
-        { key: "unity.data_dir", description: "找到 Unity 数据目录: 3D Custom Okazu Maker_Data", confidence: "confirmed" },
+        { key: "unity.data_dir", description: `找到 Unity 游戏数据目录: ${folderName}_Data`, confidence: "confirmed" },
         { key: "unity.version", description: "从 globalgamemanagers 提取版本: 2021.3.16f1", confidence: "confirmed" },
         { key: "mono_bleeding_edge", description: "MonoBleedingEdge 运行环境完整", confidence: "confirmed" },
         { key: "managed_assemblies", description: "包含 Managed/Assembly-CSharp.dll 及核心程序集", confidence: "high_probability" },
-        { key: "binary.arch", description: "UnityCrashHandler64.exe 确认 64 位 PE 结构", confidence: "confirmed" },
+        { key: "binary.arch", description: "64 位 PE 结构可执行程序", confidence: "confirmed" },
         { key: "framework.bepinex", description: "已安装 BepInEx 核心库 (BepInEx.Core.dll)", confidence: "confirmed" },
-        { key: "framework.doorstop", description: "已配置 Doorstop 引导器 (doorstop_config.ini)", confidence: "confirmed" },
-        { key: "framework.melonloader", description: "已检测到 MelonLoader (.net6) 存在潜在冲突", confidence: "conflict" }
+        { key: "framework.doorstop", description: "已配置 Doorstop 引导器 (doorstop_config.ini)", confidence: "confirmed" }
       ]
     };
   }
 
   return await invoke<EnvironmentReport>('detect_environment', { gamePath });
 }
+
 
 // 2. 调用 Rust 评估候选构建兼容性
 export async function evaluateCompatibility(report: EnvironmentReport): Promise<CompatibilityReport> {

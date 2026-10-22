@@ -28,7 +28,8 @@ export function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [report, setReport] = useState<EnvironmentReport | null>(null);
   const [compatReport, setCompatReport] = useState<CompatibilityReport | null>(null);
-  const [inputPath, setInputPath] = useState<string>("/run/media/ub/系统/Users/asus/Downloads/Telegram Desktop/3D!かすたむオカズメーカー/3D!かすたむオカズメーカー/GameCore");
+  // 生产环境初始为空，读取用户动态输入或最近选择
+  const [inputPath, setInputPath] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -98,8 +99,10 @@ export function App() {
 
 
   useEffect(() => {
-    // 初始加载一次默认路径
-    handleScan(inputPath);
+    // 生产模式：仅当输入路径有效时才触发扫描
+    if (inputPath.trim()) {
+      handleScan(inputPath);
+    }
   }, []);
 
   const toggleLanguage = () => {
@@ -204,7 +207,9 @@ export function App() {
           {report && (
             <div className="game-chip">
               <span className="game-chip-label">当前游戏：</span>
-              <span className="game-chip-val">3D Custom Okazu Maker</span>
+              <span className="game-chip-val">
+                {report.game_path.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'Unity 游戏'}
+              </span>
               {renderConfidenceBadge(report.overall_confidence)}
             </div>
           )}
@@ -259,8 +264,12 @@ export function App() {
                     </div>
                     <div className="summary-card">
                       <span className="card-lbl">推荐构建</span>
-                      <span className="card-val text-success">BepInEx 6.0</span>
-                      <span className="card-desc">v6.0.0-pre.1 Mono</span>
+                      <span className="card-val text-success">
+                        {compatReport?.recommended_build?.id || '正在分析推荐...'}
+                      </span>
+                      <span className="card-desc">
+                        {compatReport?.recommended_build ? `${compatReport.recommended_build.target_platform} ${compatReport.recommended_build.architecture} ${compatReport.recommended_build.runtime_type}` : '根据游戏环境匹配'}
+                      </span>
                     </div>
                   </div>
 
@@ -282,13 +291,11 @@ export function App() {
                 </>
               )}
 
-              {/* 冲突告警横幅 */}
-              {report?.installed_frameworks.includes('MelonLoader') && (
-                <div className="alert-banner alert-warning">
-                  <AlertTriangle size={20} />
-                  <div className="alert-text">
-                    <strong>环境冲突提示：</strong> 检测到当前目录同时存在 BepInEx 与 MelonLoader，且存在多个代理注入 DLL（winhttp.dll 与 version.dll）。建议在安装新框架前进行一键环境清理。
-                  </div>
+              {!report && !loading && (
+                <div className="empty-placeholder-card">
+                  <FolderSearch size={48} className="placeholder-icon" />
+                  <h4>尚未载入 Unity 游戏</h4>
+                  <p>请在上方输入框键入游戏可执行文件或根目录路径（或点击浏览），开始证据驱动检测与框架配置。</p>
                 </div>
               )}
             </div>
