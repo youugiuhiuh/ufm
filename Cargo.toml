@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ufm-core",
+    "crates/ufm-detector",
+    "crates/ufm-runtime",
+    "crates/ufm-registry",
+    "crates/ufm-compat",
+    "crates/ufm-download",
+    "crates/ufm-installer",
+    "crates/ufm-diagnostics",
+    "crates/ufm-report",
+    "src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["UFM Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Dark/ufm"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+anyhow = "1.0"
+tokio = { version = "1.42", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ufm-core = { path = "crates/ufm-core" }
+ufm-detector = { path = "crates/ufm-detector" }
+ufm-runtime = { path = "crates/ufm-runtime" }
+ufm-registry = { path = "crates/ufm-registry" }
+ufm-compat = { path = "crates/ufm-compat" }
+ufm-download = { path = "crates/ufm-download" }
+ufm-installer = { path = "crates/ufm-installer" }
+ufm-diagnostics = { path = "crates/ufm-diagnostics" }
+ufm-report = { path = "crates/ufm-report" }

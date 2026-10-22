@@ -1,0 +1,23 @@
+[package]
+name = "ufm-desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ufm-core.workspace = true
+ufm-detector.workspace = true
+ufm-runtime.workspace = true
+ufm-registry.workspace = true
+ufm-compat.workspace = true
+ufm-download.workspace = true
+ufm-installer.workspace = true
+ufm-diagnostics.workspace = true
+ufm-report.workspace = true

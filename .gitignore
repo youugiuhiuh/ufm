@@ -1,0 +1,14 @@
+# OS / Build
+target/
+Cargo.lock
+dist/
+node_modules/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Knowledge Graph Artifacts
+.codebase-memory/

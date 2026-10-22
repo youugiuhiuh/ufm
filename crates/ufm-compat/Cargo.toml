@@ -1,0 +1,13 @@
+[package]
+name = "ufm-compat"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ufm-core.workspace = true
+ufm-registry = { version = "0.1.0", path = "../ufm-registry" }

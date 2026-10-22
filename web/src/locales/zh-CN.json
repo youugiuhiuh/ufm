@@ -1,0 +1,34 @@
+{
+  "translation": {
+    "app": {
+      "title": "Unity Framework Manager",
+      "subtitle": "跨平台 Unity 游戏环境检测与框架管理工具"
+    },
+    "nav": {
+      "home": "首页",
+      "environment": "游戏环境",
+      "frameworks": "框架管理",
+      "diagnostics": "故障诊断",
+      "history": "操作历史",
+      "settings": "设置"
+    },
+    "home": {
+      "selectGame": "选择游戏目录或可执行文件",
+      "selectGameDesc": "自动分析 Unity 版本、Mono/IL2CPP 运行时及架构",
+      "recentGames": "最近扫描",
+      "noRecent": "暂无扫描记录，请选择一个游戏开始分析",
+      "status": "就绪"
+    },
+    "status": {
+      "confirmed": "已确认",
+      "high_probability": "高概率",
+      "unknown": "未知",
+      "conflict": "存在冲突"
+    },
+    "common": {
+      "language": "语言",
+      "theme": "主题",
+      "version": "版本"
+    }
+  }
+}

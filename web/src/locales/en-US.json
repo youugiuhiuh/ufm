@@ -1,0 +1,34 @@
+{
+  "translation": {
+    "app": {
+      "title": "Unity Framework Manager",
+      "subtitle": "Cross-platform Unity Game Environment & Framework Manager"
+    },
+    "nav": {
+      "home": "Home",
+      "environment": "Environment",
+      "frameworks": "Frameworks",
+      "diagnostics": "Diagnostics",
+      "history": "History",
+      "settings": "Settings"
+    },
+    "home": {
+      "selectGame": "Select Game Directory or Executable",
+      "selectGameDesc": "Automatically detect Unity version, Mono/IL2CPP runtime and architecture",
+      "recentGames": "Recent Games",
+      "noRecent": "No recent scans. Select a game to begin analysis.",
+      "status": "Ready"
+    },
+    "status": {
+      "confirmed": "Confirmed",
+      "high_probability": "High Probability",
+      "unknown": "Unknown",
+      "conflict": "Conflict"
+    },
+    "common": {
+      "language": "Language",
+      "theme": "Theme",
+      "version": "Version"
+    }
+  }
+}
