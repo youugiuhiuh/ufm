@@ -29,4 +29,7 @@ pub enum InstallerError {
 
     #[error("Manifest error: {0}")]
     ManifestError(String),
+
+    #[error("General installer error: {0}")]
+    General(String),
 }

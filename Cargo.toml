@@ -27,6 +27,7 @@ thiserror = "2.0"
 anyhow = "1.0"
 tokio = { version = "1.42", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ufm-core = { path = "crates/ufm-core" }

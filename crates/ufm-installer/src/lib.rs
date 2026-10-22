@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod error;
 pub mod hash;
 pub mod manifest;
@@ -5,6 +6,7 @@ pub mod plan;
 pub mod transaction;
 pub mod uninstall;
 
+pub use archive::ArchiveExtractor;
 pub use error::InstallerError;
 pub use hash::{hash_file, sha256_bytes};
 pub use manifest::{BackupRecord, InstallManifest, InstalledFileRecord, InstalledFileType};
