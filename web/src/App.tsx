@@ -18,8 +18,8 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import type { EnvironmentReport, CompatibilityReport } from './types';
-import { detectEnvironment, evaluateCompatibility } from './api';
+import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview } from './types';
+import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall } from './api';
 import './App.css';
 
 export function App() {
@@ -31,6 +31,40 @@ export function App() {
   const [inputPath, setInputPath] = useState<string>("/run/media/ub/系统/Users/asus/Downloads/Telegram Desktop/3D!かすたむオカズメーカー/3D!かすたむオカズメーカー/GameCore");
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // 安装对话框与事务状态
+  const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
+  const [targetBuildId, setTargetBuildId] = useState<string | null>(null);
+  const [installPlan, setInstallPlan] = useState<InstallPlanPreview | null>(null);
+  const [installing, setInstalling] = useState<boolean>(false);
+  const [installSuccess, setInstallSuccess] = useState<boolean>(false);
+
+  const openInstallDialog = async (buildId: string) => {
+    setTargetBuildId(buildId);
+    setInstallSuccess(false);
+    setInstallModalOpen(true);
+    try {
+      const plan = await prepareInstallPlan(inputPath, buildId);
+      setInstallPlan(plan);
+    } catch (e: unknown) {
+      console.error(e);
+    }
+  };
+
+  const handleConfirmInstall = async () => {
+    if (!targetBuildId) return;
+    setInstalling(true);
+    try {
+      await executeInstall(inputPath, targetBuildId);
+      setInstallSuccess(true);
+      // 重新执行环境检测，刷新已装框架状态
+      await handleScan(inputPath);
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   const handleScan = async (path: string) => {
     if (!path.trim()) return;
@@ -296,7 +330,10 @@ export function App() {
                       <h4>{compatReport.recommended_build.id}</h4>
                       <p className="build-meta">官方 release 归档包 · 完全兼容当前游戏 LTS 引擎与 Mono 运行环境</p>
                     </div>
-                    <button className="primary-btn install-btn">
+                    <button 
+                      className="primary-btn install-btn"
+                      onClick={() => openInstallDialog(compatReport.recommended_build!.id)}
+                    >
                       <Download size={16} /> 开始安全安装
                     </button>
                   </div>
@@ -357,8 +394,71 @@ export function App() {
           )}
         </div>
       </main>
+
+      {/* 安装计划预览与确认 Modal */}
+      {installModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-dialog">
+            <div className="modal-header">
+              <div className="modal-title">
+                <ShieldCheck size={20} className="text-success" />
+                <h3>框架安装计划预览 (安全事务)</h3>
+              </div>
+              <button className="icon-btn-close" onClick={() => setInstallModalOpen(false)}>×</button>
+            </div>
+
+            <div className="modal-body">
+              {installSuccess ? (
+                <div className="install-success-card">
+                  <CheckCircle2 size={48} className="text-success" />
+                  <h4>安装事务执行成功！</h4>
+                  <p>框架文件已成功写入，修改的原文件已原子备份，清单已记录。</p>
+                  <button className="primary-btn" onClick={() => setInstallModalOpen(false)}>完成</button>
+                </div>
+              ) : (
+                <>
+                  <p className="modal-intro">
+                    根据计划书安全原则，UFM 将在写入前备份可能冲突的现有文件，生成完整安装清单以支持无损回滚。
+                  </p>
+
+                  <div className="install-meta-row">
+                    <span>目标构建: <strong>{targetBuildId}</strong></span>
+                    <span>备份路径: <code>.ufm_backups/</code></span>
+                  </div>
+
+                  <div className="changes-list-card">
+                    <span className="changes-header">将变更的文件清单 ({installPlan?.total_actions || 0} 项):</span>
+                    <div className="changes-scroll">
+                      {installPlan?.changes.map((ch, idx) => (
+                        <div key={idx} className="change-item">
+                          <span className={`change-tag ${ch.action_type === 'add' ? 'tag-add' : 'tag-mod'}`}>
+                            {ch.action_type === 'add' ? '新增' : '修改/覆盖'}
+                          </span>
+                          <span className="change-path">{ch.relative_path}</span>
+                          {ch.will_backup && <span className="pill pill-backup">自动备份原文件</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="modal-footer">
+                    <button className="secondary-btn" onClick={() => setInstallModalOpen(false)} disabled={installing}>
+                      取消
+                    </button>
+                    <button className="primary-btn" onClick={handleConfirmInstall} disabled={installing}>
+                      {installing ? <Loader2 size={16} className="spin-icon" /> : <Download size={16} />}
+                      {installing ? '正在备份并原子安装...' : '确认并开始安装'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default App;
+

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { EnvironmentReport, CompatibilityReport } from './types';
+import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview } from './types';
 
 // 检查是否运行在真正的 Tauri 桌面环境中
 export const isTauriEnvironment = (): boolean => {
@@ -102,3 +102,55 @@ export async function evaluateCompatibility(report: EnvironmentReport): Promise<
 
   return await invoke<CompatibilityReport>('evaluate_compatibility', { report });
 }
+
+// 3. 生成安装计划预览（新增、修改、备份清单）
+export async function prepareInstallPlan(gamePath: string, buildId: string): Promise<InstallPlanPreview> {
+  if (!isTauriEnvironment()) {
+    return {
+      package_name: buildId,
+      package_version: "6.0.0-pre.1",
+      total_actions: 4,
+      backup_dir: `${gamePath}/.ufm_backups/20261022_195500`,
+      changes: [
+        {
+          relative_path: "winhttp.dll",
+          action_type: "modify",
+          size: 26624,
+          will_backup: true
+        },
+        {
+          relative_path: "doorstop_config.ini",
+          action_type: "modify",
+          size: 1451,
+          will_backup: true
+        },
+        {
+          relative_path: "BepInEx/core/BepInEx.Core.dll",
+          action_type: "add",
+          size: 428032,
+          will_backup: false
+        },
+        {
+          relative_path: "BepInEx/core/BepInEx.Unity.Mono.Preloader.dll",
+          action_type: "add",
+          size: 98304,
+          will_backup: false
+        }
+      ]
+    };
+  }
+
+  return await invoke<InstallPlanPreview>('prepare_install_plan', { gamePath, buildId });
+}
+
+// 4. 执行原子安装事务
+export async function executeInstall(gamePath: string, buildId: string): Promise<boolean> {
+  if (!isTauriEnvironment()) {
+    console.log(`[UFM 模拟安装] 针对 ${gamePath} 安装 ${buildId} 成功`);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    return true;
+  }
+
+  return await invoke<boolean>('execute_install', { gamePath, buildId });
+}
+

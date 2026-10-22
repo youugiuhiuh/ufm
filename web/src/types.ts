@@ -68,3 +68,19 @@ export interface CompatibilityReport {
   recommended_build?: BepInExBuild;
   global_warnings: CompatibilityWarning[];
 }
+
+export interface InstallFileChange {
+  relative_path: string;
+  action_type: 'add' | 'modify';
+  size: number;
+  will_backup: boolean;
+}
+
+export interface InstallPlanPreview {
+  package_name: string;
+  package_version: string;
+  total_actions: number;
+  changes: InstallFileChange[];
+  backup_dir: string;
+}
+
