@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="Unity Framework Manager" Language="2052" Version="0.1.0" Manufacturer="UFM Team" UpgradeCode="78f9c1b3-4f2a-4a89-9c56-d419b48f6820">
-    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-    <MajorUpgrade DowngradeErrorMessage="已安装更新版本的 Unity Framework Manager。" />
+  <Product Id="*" Name="Unity Framework Manager" Language="2052" Codepage="65001" Version="0.1.0" Manufacturer="UFM Team" UpgradeCode="78f9c1b3-4f2a-4a89-9c56-d419b48f6820">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" SummaryCodepage="65001" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Unity Framework Manager is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Feature Id="ProductFeature" Title="Unity Framework Manager" Level="1">
