@@ -21,7 +21,7 @@
   <Fragment>
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="UfmExecutable" Guid="9b14c3e8-5b4d-4521-a3f1-e129cf9a38f4">
-        <File Id="UfmExe" Source="target/release/ufm.exe" KeyPath="yes" />
+        <File Id="UfmExe" Source="ufm.exe" KeyPath="yes" />
       </Component>
     </ComponentGroup>
   </Fragment>

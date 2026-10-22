@@ -90,7 +90,7 @@ jobs:
       - name: Compile UFM Core Workspace
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        run: cargo build --release --workspace --target ${{ matrix.platform.target }}
+        run: cargo build --release -p ufm-desktop --target ${{ matrix.platform.target }}
 
       # 1. Windows 原生 MSI 安装包构建
       - name: Build Windows MSI Installer
@@ -99,11 +99,13 @@ jobs:
         run: |
           mkdir -p dist/msi-build
           TARGET_DIR="target/${{ matrix.platform.target }}/release"
+          # 直接将编译出的二进制文件和模板复制到同级目录，消除反斜杠与相对路径查找问题
+          cp "$TARGET_DIR/ufm.exe" dist/msi-build/ufm.exe
           cp packaging/windows/ufm.wxs dist/msi-build/ufm.wxs
-          sed -i "s|target/release/ufm.exe|$TARGET_DIR/ufm.exe|g" dist/msi-build/ufm.wxs
-          candle -out dist/msi-build/ufm.wixobj dist/msi-build/ufm.wxs
-          light -ext WixUIExtension -out "dist/ufm-${{ matrix.platform.name }}.msi" dist/msi-build/ufm.wixobj || {
-            light -out "dist/ufm-${{ matrix.platform.name }}.msi" dist/msi-build/ufm.wixobj
+          cd dist/msi-build
+          candle -out ufm.wixobj ufm.wxs
+          light -ext WixUIExtension -out "../ufm-${{ matrix.platform.name }}.msi" ufm.wixobj || {
+            light -out "../ufm-${{ matrix.platform.name }}.msi" ufm.wixobj
           }
 
       # 2. Linux 原生 DEB & RPM 安装包构建
