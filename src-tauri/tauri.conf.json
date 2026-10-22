@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Unity Framework Manager",
         "width": 1024,
         "height": 720,
