@@ -11,3 +11,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 ufm-core.workspace = true
 ufm-runtime = { version = "0.1.0", path = "../ufm-runtime" }
+
+[dev-dependencies]
+ufm-registry.workspace = true
+ufm-compat.workspace = true
