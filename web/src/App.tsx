@@ -134,7 +134,7 @@ export function App() {
       {/* 侧边导航 */}
       <aside className="sidebar">
         <div className="brand">
-          <Layers className="brand-icon" size={24} />
+          <img src="/favicon.png" alt="UFM" className="brand-app-logo" />
           <div className="brand-info">
             <span className="brand-text">UFM</span>
             <span className="brand-sub">Unity Framework Mgr</span>

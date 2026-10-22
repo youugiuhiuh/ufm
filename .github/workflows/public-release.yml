@@ -96,6 +96,7 @@ jobs:
           TARGET_DIR="target/${{ matrix.platform.target }}/release"
           cp "$TARGET_DIR/ufm.exe" dist/msi-build/ufm.exe
           cp packaging/windows/ufm.wxs dist/msi-build/ufm.wxs
+          cp src-tauri/icons/icon.ico dist/msi-build/icon.ico
           cd dist/msi-build
           candle -out ufm.wixobj ufm.wxs
           light -ext WixUIExtension -out "../ufm-${{ matrix.platform.name }}.msi" ufm.wixobj || light -out "../ufm-${{ matrix.platform.name }}.msi" ufm.wixobj
@@ -150,6 +151,7 @@ jobs:
           chmod 755 "$APP_DIR/MacOS/ufm"
           cp -r web/dist "$APP_DIR/Resources/web"
           cp packaging/macos/Info.plist "$APP_DIR/Info.plist"
+          cp src-tauri/icons/icon.icns "$APP_DIR/Resources/icon.icns" || true
 
           DMG_STAGE="dist/dmg-stage"
           mkdir -p "$DMG_STAGE"

@@ -8,6 +8,8 @@
     <Feature Id="ProductFeature" Title="Unity Framework Manager" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
     </Feature>
+    <Icon Id="icon.ico" SourceFile="icon.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="icon.ico" />
   </Product>
 
   <Fragment>

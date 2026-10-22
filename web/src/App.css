@@ -29,6 +29,14 @@
   color: var(--accent-primary);
 }
 
+.brand-app-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
 .brand-info {
   display: flex;
   flex-direction: column;
