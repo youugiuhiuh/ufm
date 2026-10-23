@@ -226,10 +226,18 @@
   transition: background-color 0.15s ease;
 }
 
-.secondary-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.browse-btn {
+  padding: 0.65rem 1rem;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  white-space: nowrap;
 }
+
+.browse-btn:hover {
+  background-color: var(--border-color);
+}
+
 
 /* 概览网格 */
 .quick-summary-grid {

@@ -19,7 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
-import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall, diagnoseLogs, exportReportMarkdown } from './api';
+import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall, diagnoseLogs, exportReportMarkdown, pickGameDirectoryOrFile } from './api';
 import './App.css';
 
 export function App() {
@@ -33,7 +33,14 @@ export function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // 安装对话框与事务状态
+  const handleBrowseGame = async () => {
+    const selected = await pickGameDirectoryOrFile();
+    if (selected) {
+      setInputPath(selected);
+      handleScan(selected);
+    }
+  };
+
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
   const [targetBuildId, setTargetBuildId] = useState<string | null>(null);
   const [installPlan, setInstallPlan] = useState<InstallPlanPreview | null>(null);
@@ -226,16 +233,23 @@ export function App() {
                     type="text" 
                     value={inputPath}
                     onChange={(e) => setInputPath(e.target.value)}
-                    placeholder="请输入或选择 Unity 游戏根目录 / 可执行文件..."
+                    placeholder="请输入或浏览选择 Unity 游戏根目录 / 可执行文件..."
                     className="path-input"
                   />
                   <button 
+                    className="secondary-btn browse-btn"
+                    onClick={handleBrowseGame}
+                    title="浏览本地文件系统选择游戏目录"
+                  >
+                    浏览...
+                  </button>
+                  <button 
                     className="primary-btn scan-btn" 
                     onClick={() => handleScan(inputPath)}
-                    disabled={loading}
+                    disabled={loading || !inputPath.trim()}
                   >
                     {loading ? <Loader2 size={16} className="spin-icon" /> : null}
-                    {loading ? '分析中...' : '重新分析'}
+                    {loading ? '分析中...' : '开始分析'}
                   </button>
                 </div>
               </div>
@@ -295,7 +309,10 @@ export function App() {
                 <div className="empty-placeholder-card">
                   <FolderSearch size={48} className="placeholder-icon" />
                   <h4>尚未载入 Unity 游戏</h4>
-                  <p>请在上方输入框键入游戏可执行文件或根目录路径（或点击浏览），开始证据驱动检测与框架配置。</p>
+                  <p>请点击上方“浏览...”按钮选择游戏根目录，或直接粘贴路径后点击“开始分析”。</p>
+                  <button className="primary-btn" onClick={handleBrowseGame}>
+                    <FolderSearch size={16} /> 浏览选择游戏目录
+                  </button>
                 </div>
               )}
             </div>

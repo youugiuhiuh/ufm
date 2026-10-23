@@ -1,10 +1,41 @@
 import { invoke } from '@tauri-apps/api/core';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
 
 // 检查是否运行在真正的 Tauri 桌面环境中
 export const isTauriEnvironment = (): boolean => {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 };
+
+// 0. 打开系统原生文件/目录选择器
+export async function pickGameDirectoryOrFile(): Promise<string | null> {
+  if (!isTauriEnvironment()) {
+    // 纯 Web 环境使用 HTML 目录拾取或提示
+    return prompt("Web 预览模式：请输入或粘贴 Unity 游戏目录路径：", "D:/Games/MyUnityGame");
+  }
+
+  try {
+    const selected = await openDialog({
+      title: "选择 Unity 游戏根目录或可执行文件",
+      multiple: false,
+      directory: true, // 优先选择游戏根目录
+    });
+
+    if (!selected) {
+      return null;
+    }
+
+    if (Array.isArray(selected)) {
+      return selected[0] || null;
+    }
+
+    return selected;
+  } catch (err) {
+    console.error("打开原生文件选择器失败:", err);
+    return null;
+  }
+}
+
 
 // 1. 调用 Rust 核心检测环境
 export async function detectEnvironment(gamePath: string): Promise<EnvironmentReport> {
