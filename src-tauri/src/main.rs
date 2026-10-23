@@ -16,7 +16,7 @@ fn detect_environment(game_path: String) -> Result<EnvironmentReport, String> {
 
 #[tauri::command]
 fn evaluate_compatibility(report: EnvironmentReport) -> Result<CompatibilityReport, String> {
-    let registry = BepInExRegistry::new_default();
+    let registry = BepInExRegistry::official_catalog();
     let builds = registry.list_all();
     let compat_report = filter_candidates(&report, &builds);
     Ok(compat_report)
@@ -103,7 +103,7 @@ fn diagnose_log(
             diag.issues.push(ufm_diagnostics::DiagnosticIssue {
                 rule_id: "LOADER_CONFLICT_MELON_BEPINEX".to_string(),
                 title: "MelonLoader 与 BepInEx 混装共存".to_string(),
-                risk_level: ufm_diagnostics::RiskLevel::Warning,
+                risk_level: ufm_diagnostics::RiskLevel::Medium,
                 description: "目录中同时检测到 MelonLoader 和 BepInEx 运行库，两者可能竞争劫持 Unity 运行时导致崩溃。".to_string(),
                 matched_lines: vec!["Found MelonLoader runtime".to_string(), "Found BepInEx runtime".to_string()],
                 suggested_fix: "建议仅保留一套框架。若使用 BepInEx，请移除或备份重命名 MelonLoader 目录。".to_string(),
