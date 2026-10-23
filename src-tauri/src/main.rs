@@ -18,9 +18,28 @@ fn detect_environment(game_path: String) -> Result<EnvironmentReport, String> {
     detect(path).map_err(|e| format!("游戏环境检测失败: {e}"))
 }
 
+async fn get_full_registry() -> BepInExRegistry {
+    let mut registry = BepInExRegistry::official_catalog();
+
+    // 动态拉取 builds.bepinex.dev 上的最新 Bleeding Edge 构建
+    let cache_dir = get_cache_dir();
+    if let Ok(downloader) = DownloadManager::new(&cache_dir) {
+        if let Ok(html) = downloader.fetch_bepinex_be_index().await {
+            let be_builds = BepInExRegistry::parse_bepinex_be_html(&html);
+            for b in be_builds {
+                if registry.get(&b.id).is_none() {
+                    registry.add(b);
+                }
+            }
+        }
+    }
+
+    registry
+}
+
 #[tauri::command]
-fn evaluate_compatibility(report: EnvironmentReport) -> Result<CompatibilityReport, String> {
-    let registry = BepInExRegistry::official_catalog();
+async fn evaluate_compatibility(report: EnvironmentReport) -> Result<CompatibilityReport, String> {
+    let registry = get_full_registry().await;
     let builds = registry.builds();
     let compat_report = filter_candidates(&report, builds);
     Ok(compat_report)
@@ -60,7 +79,7 @@ fn make_backup_dir(target_dir: &Path) -> PathBuf {
 }
 
 async fn download_build_zip(build_id: &str) -> Result<(String, String, PathBuf), String> {
-    let registry = BepInExRegistry::official_catalog();
+    let registry = get_full_registry().await;
     let build = registry
         .get(build_id)
         .ok_or_else(|| format!("未在目录库中找到目标构建: {build_id}"))?;

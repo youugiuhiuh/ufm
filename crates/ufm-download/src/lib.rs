@@ -132,6 +132,18 @@ impl DownloadManager {
         &self.cache_dir
     }
 
+    /// 抓取 builds.bepinex.dev 上的最新构建列表页面
+    pub async fn fetch_bepinex_be_index(&self) -> Result<String, DownloadError> {
+        let resp = self
+            .client
+            .get("https://builds.bepinex.dev/projects/bepinex_be")
+            .timeout(std::time::Duration::from_secs(4))
+            .send()
+            .await?;
+        let text = resp.text().await?;
+        Ok(text)
+    }
+
     /// 下载或从本地缓存加载文件，并验证 SHA-256
     pub async fn fetch_with_verify(
         &self,

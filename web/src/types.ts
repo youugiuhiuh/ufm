@@ -2,7 +2,7 @@ export type Confidence = 'confirmed' | 'high_probability' | 'unknown' | 'conflic
 export type RuntimeType = 'mono' | 'il2cpp' | 'unknown';
 export type Architecture = 'x86' | 'x64' | 'arm64' | 'unknown';
 export type TargetPlatform = 'windows' | 'linux' | 'macos' | 'unknown';
-export type BuildChannel = 'release' | 'bleedingedge';
+export type BuildChannel = 'release' | 'bleeding_edge' | 'bleedingedge';
 export type CompatibilityStatus = 'compatible' | 'partiallycompatible' | 'incompatible';
 
 export interface EvidenceItem {

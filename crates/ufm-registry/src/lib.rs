@@ -100,9 +100,135 @@ impl BepInExRegistry {
         &self.builds
     }
 
+    /// 从 builds.bepinex.dev HTML 文本中解析提取 Bleeding Edge 构建
+    pub fn parse_bepinex_be_html(html: &str) -> Vec<BepInExBuild> {
+        let mut list = Vec::new();
+        for line in html.lines() {
+            if !line.contains("/projects/bepinex_be/") || !line.contains(".zip") {
+                continue;
+            }
+            if let Some(start_idx) = line.find("href=\"/projects/bepinex_be/") {
+                let rest = &line[start_idx + 6..];
+                if let Some(end_idx) = rest.find('"') {
+                    let href = &rest[..end_idx];
+                    let parts: Vec<&str> = href.split('/').collect();
+                    if parts.len() >= 5 {
+                        let build_num = parts[3];
+                        let raw_filename = parts[4];
+                        let decoded_filename = raw_filename.replace("%2B", "+");
+
+                        let is_mono = decoded_filename.contains("Unity.Mono");
+                        let is_il2cpp = decoded_filename.contains("Unity.IL2CPP");
+                        if !is_mono && !is_il2cpp {
+                            continue;
+                        }
+
+                        let runtime_type = if is_mono {
+                            RuntimeType::Mono
+                        } else {
+                            RuntimeType::Il2Cpp
+                        };
+
+                        let target_platform = if decoded_filename.contains("-win-") {
+                            TargetPlatform::Windows
+                        } else if decoded_filename.contains("-linux-") {
+                            TargetPlatform::Linux
+                        } else if decoded_filename.contains("-macos-") {
+                            TargetPlatform::MacOs
+                        } else {
+                            continue;
+                        };
+
+                        let architecture = if decoded_filename.contains("-x64-") {
+                            Architecture::X64
+                        } else if decoded_filename.contains("-x86-") {
+                            Architecture::X86
+                        } else if decoded_filename.contains("-arm64-") {
+                            Architecture::Arm64
+                        } else {
+                            continue;
+                        };
+
+                        let version = format!("6.0.0-be.{build_num}");
+                        let id = format!(
+                            "bepinex-v6.0.0-be.{}-{:?}-{:?}-{:?}",
+                            build_num, target_platform, architecture, runtime_type
+                        )
+                        .to_lowercase();
+
+                        let download_url = format!("https://builds.bepinex.dev{href}");
+                        let build = BepInExBuild::new(
+                            id,
+                            version,
+                            BuildChannel::BleedingEdge,
+                            runtime_type,
+                            architecture,
+                            target_platform,
+                            download_url,
+                            "",
+                        )
+                        .with_filename(decoded_filename);
+
+                        if !list.iter().any(|b: &BepInExBuild| b.id == build.id) {
+                            list.push(build);
+                        }
+                    }
+                }
+            }
+        }
+        list
+    }
+
     /// Predefined official/standard builds for tests and fallback catalogs.
     pub fn official_catalog() -> Self {
         Self::with_builds(vec![
+            // ==========================================
+            // 1. BepInEx 5 经典稳定版 (最高兼容性，适合 Mono 游戏与老插件)
+            // ==========================================
+            BepInExBuild::new(
+                "bepinex-v5.4.23.2-win-x64-mono",
+                "5.4.23.2",
+                BuildChannel::Release,
+                RuntimeType::Mono,
+                Architecture::X64,
+                TargetPlatform::Windows,
+                "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_win_x64_5.4.23.2.zip",
+                "f752ce4e838f4c305b9da1404b6745f2cff23b8bfd494f79f0c84d0a01f59b46",
+            ).with_filename("BepInEx_win_x64_5.4.23.2.zip"),
+            BepInExBuild::new(
+                "bepinex-v5.4.23.2-win-x86-mono",
+                "5.4.23.2",
+                BuildChannel::Release,
+                RuntimeType::Mono,
+                Architecture::X86,
+                TargetPlatform::Windows,
+                "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_win_x86_5.4.23.2.zip",
+                "7dd51193587a86c11a58530aeeb4789b15763cc6cf2c55e71785cef4ef214253",
+            ).with_filename("BepInEx_win_x86_5.4.23.2.zip"),
+            BepInExBuild::new(
+                "bepinex-v5.4.23.2-linux-x64-mono",
+                "5.4.23.2",
+                BuildChannel::Release,
+                RuntimeType::Mono,
+                Architecture::X64,
+                TargetPlatform::Linux,
+                "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_linux_x64_5.4.23.2.zip",
+                "ddc446143a0a277ed92eb7a1f5bf794ff4fdd0023bddc0491f85eafd1898225b",
+            ).with_filename("BepInEx_linux_x64_5.4.23.2.zip"),
+            BepInExBuild::new(
+                "bepinex-v5.4.23.2-macos-x64-mono",
+                "5.4.23.2",
+                BuildChannel::Release,
+                RuntimeType::Mono,
+                Architecture::X64,
+                TargetPlatform::MacOs,
+                "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_macos_x64_5.4.23.2.zip",
+                "bc724642ae54c31b9ab8e7d5b2ae5daffef0201a7349d78fcd43a7d4cbb8dbbf",
+            ).with_filename("BepInEx_macos_x64_5.4.23.2.zip"),
+
+            // ==========================================
+            // 2. BepInEx 6 官方 Release 预发布构建
+            // ==========================================
             BepInExBuild::new(
                 "bepinex-v6.0.0-pre.1-win-x64-il2cpp",
                 "6.0.0-pre.1",
@@ -164,26 +290,6 @@ impl BepInExRegistry {
                 "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
             ).with_filename("BepInEx_UnityMono_linux_x64_6.0.0-pre.1.zip"),
             BepInExBuild::new(
-                "bepinex-v6.0.0-be.724-win-x64-il2cpp",
-                "6.0.0-be.724",
-                BuildChannel::BleedingEdge,
-                RuntimeType::Il2Cpp,
-                Architecture::X64,
-                TargetPlatform::Windows,
-                "https://builds.bepinex.dev/projects/bepinex_be/724/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.724+50ff69f.zip",
-                "4e1243bd22c66e76c2ba9eddc1f91394e57f9f835f8357771746261f31f267a1",
-            ).with_filename("BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.724+50ff69f.zip"),
-            BepInExBuild::new(
-                "bepinex-v6.0.0-be.724-win-x64-mono",
-                "6.0.0-be.724",
-                BuildChannel::BleedingEdge,
-                RuntimeType::Mono,
-                Architecture::X64,
-                TargetPlatform::Windows,
-                "https://builds.bepinex.dev/projects/bepinex_be/724/BepInEx-Unity.Mono-win-x64-6.0.0-be.724+50ff69f.zip",
-                "18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
-            ).with_filename("BepInEx-Unity.Mono-win-x64-6.0.0-be.724+50ff69f.zip"),
-            BepInExBuild::new(
                 "bepinex-v6.0.0-pre.1-macos-x64-mono",
                 "6.0.0-pre.1",
                 BuildChannel::Release,
@@ -193,16 +299,110 @@ impl BepInExRegistry {
                 "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityMono_macos_x64_6.0.0-pre.1.zip",
                 "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
             ).with_filename("BepInEx_UnityMono_macos_x64_6.0.0-pre.1.zip"),
+
+            // ==========================================
+            // 3. builds.bepinex.dev (bepinex_be) 最新 Bleeding Edge 夜间构建
+            // ==========================================
             BepInExBuild::new(
-                "bepinex-v6.0.0-be.724-macos-arm64-il2cpp",
-                "6.0.0-be.724",
+                "bepinex-v6.0.0-be.790-win-x64-mono",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Mono,
+                Architecture::X64,
+                TargetPlatform::Windows,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.Mono-win-x64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.Mono-win-x64-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-win-x64-il2cpp",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Il2Cpp,
+                Architecture::X64,
+                TargetPlatform::Windows,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-win-x86-mono",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Mono,
+                Architecture::X86,
+                TargetPlatform::Windows,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.Mono-win-x86-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.Mono-win-x86-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-win-x86-il2cpp",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Il2Cpp,
+                Architecture::X86,
+                TargetPlatform::Windows,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.IL2CPP-win-x86-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.IL2CPP-win-x86-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-linux-x64-mono",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Mono,
+                Architecture::X64,
+                TargetPlatform::Linux,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.Mono-linux-x64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.Mono-linux-x64-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-linux-x86-mono",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Mono,
+                Architecture::X86,
+                TargetPlatform::Linux,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.Mono-linux-x86-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.Mono-linux-x86-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-linux-x64-il2cpp",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Il2Cpp,
+                Architecture::X64,
+                TargetPlatform::Linux,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.IL2CPP-linux-x64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.IL2CPP-linux-x64-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-macos-x64-mono",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Mono,
+                Architecture::X64,
+                TargetPlatform::MacOs,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.Mono-macos-x64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.Mono-macos-x64-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-macos-x64-il2cpp",
+                "6.0.0-be.790",
+                BuildChannel::BleedingEdge,
+                RuntimeType::Il2Cpp,
+                Architecture::X64,
+                TargetPlatform::MacOs,
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.IL2CPP-macos-x64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.IL2CPP-macos-x64-6.0.0-be.790+4e98359.zip"),
+            BepInExBuild::new(
+                "bepinex-v6.0.0-be.790-macos-arm64-il2cpp",
+                "6.0.0-be.790",
                 BuildChannel::BleedingEdge,
                 RuntimeType::Il2Cpp,
                 Architecture::Arm64,
                 TargetPlatform::MacOs,
-                "https://builds.bepinex.dev/projects/bepinex_be/724/BepInEx-Unity.IL2CPP-macos-arm64-6.0.0-be.724.zip",
-                "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
-            ).with_filename("BepInEx-Unity.IL2CPP-macos-arm64-6.0.0-be.724.zip"),
+                "https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.IL2CPP-macos-arm64-6.0.0-be.790%2B4e98359.zip",
+                "",
+            ).with_filename("BepInEx-Unity.IL2CPP-macos-arm64-6.0.0-be.790+4e98359.zip"),
         ])
     }
 }

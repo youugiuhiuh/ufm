@@ -220,7 +220,13 @@ pub fn evaluate_build(report: &EnvironmentReport, build: &BepInExBuild) -> Compa
     if build.channel == BuildChannel::BleedingEdge {
         warnings.push(CompatibilityWarning::warning(
             "BLEEDING_EDGE_BUILD",
-            "BleedingEdge build: automated bleeding-edge artifact; may contain unreleased bugs.",
+            "Bleeding Edge (builds.bepinex.dev 夜间构建)：包含最新特性与修复，但可能包含未完全稳定的变更。",
+        ));
+    }
+    if build.version.starts_with("5.") {
+        warnings.push(CompatibilityWarning::info(
+            "BEPINEX_5_STABLE",
+            "BepInEx 5 (经典稳定版)：针对 Unity Mono 游戏兼容性最佳，拥有成熟 Mod 插件生态。若 BepInEx 6 存在异常或老插件无法加载，强烈建议选用此版本。",
         ));
     }
     if build.runtime_type == RuntimeType::Il2Cpp {
@@ -365,18 +371,31 @@ pub fn filter_candidates(
         .collect();
 
     // Recommendation strategy:
-    // 1. First priority: Compatible + Release channel
-    // 2. Second priority: Compatible + BleedingEdge channel
-    // 3. Fallback: PartiallyCompatible + Release channel
+    // 默认优先推荐 builds.bepinex.dev 上的最新 Bleeding Edge 构建（修复了海量游戏崩溃与现代 Unity 适配问题），
+    // 随后是 BepInEx 6 Release，再随后是 BepInEx 5 经典稳定版。
+    let build_score = |build: &BepInExBuild| -> (u8, u32) {
+        let channel_tier = match build.channel {
+            BuildChannel::BleedingEdge => 3,
+            BuildChannel::Release if build.version.starts_with("6.") => 2,
+            BuildChannel::Release => 1,
+        };
+        let be_num = if let Some(idx) = build.version.find("be.") {
+            build.version[idx + 3..].parse::<u32>().unwrap_or(0)
+        } else {
+            0
+        };
+        (channel_tier, be_num)
+    };
+
     let recommended_build = assessments
         .iter()
         .filter(|a| a.status == CompatibilityStatus::Compatible)
-        .max_by_key(|a| (a.build.channel == BuildChannel::Release, &a.build.version))
+        .max_by_key(|a| (build_score(&a.build), &a.build.version))
         .or_else(|| {
             assessments
                 .iter()
                 .filter(|a| a.status == CompatibilityStatus::PartiallyCompatible)
-                .max_by_key(|a| (a.build.channel == BuildChannel::Release, &a.build.version))
+                .max_by_key(|a| (build_score(&a.build), &a.build.version))
         })
         .map(|a| a.build.clone());
 
@@ -460,9 +479,9 @@ mod tests {
             assert!(c.reasons.iter().all(|r| r.state == MatchState::Matched));
         }
 
-        // Recommended build should be the release build
+        // Recommended build defaults to the latest BleedingEdge build from builds.bepinex.dev
         let recommended = result.recommended_build.expect("recommended build");
-        assert_eq!(recommended.channel, BuildChannel::Release);
+        assert_eq!(recommended.channel, BuildChannel::BleedingEdge);
         assert_eq!(recommended.runtime_type, RuntimeType::Mono);
     }
 

@@ -86,6 +86,7 @@ export function App() {
   const [historyList, setHistoryList] = useState<InstallHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState<boolean>(false);
   const [downloadMirror, setDownloadMirror] = useState<string>(() => localStorage.getItem('ufm_download_mirror') || 'direct');
+  const [frameworkFilter, setFrameworkFilter] = useState<'all' | 'v6' | 'v5' | 'be'>('all');
 
   const loadHistory = async (path?: string) => {
     setHistoryLoading(true);
@@ -372,31 +373,47 @@ export function App() {
                     </div>
                   </div>
 
-                  {compatReport?.recommended_build && (
-                    <div className="hero-action-banner">
-                      <div className="hero-action-info">
-                        <div className="hero-action-title">
-                          <ShieldCheck size={20} className="text-primary" />
-                          <strong>
-                            {report.installed_frameworks.includes('BepInEx') ? '已安装 BepInEx 框架' : '推荐安装 BepInEx 6 官方构建'}
-                          </strong>
-                          <span className="pill pill-recommended">{compatReport.recommended_build.id}</span>
+                  {compatReport?.recommended_build && (() => {
+                    const bepinex5Build = compatReport.assessments.find(a => a.build.version.startsWith('5.') && a.status === 'compatible')?.build;
+                    return (
+                      <div className="hero-action-banner">
+                        <div className="hero-action-info">
+                          <div className="hero-action-title">
+                            <ShieldCheck size={20} className="text-primary" />
+                            <strong>
+                              {report.installed_frameworks.includes('BepInEx') ? '已安装 BepInEx 框架' : '推荐安装 Mod 框架'}
+                            </strong>
+                            <span className="pill pill-recommended">{compatReport.recommended_build.id}</span>
+                          </div>
+                          <p className="hero-action-desc">
+                            {report.installed_frameworks.includes('BepInEx')
+                              ? '当前游戏目录已部署 BepInEx 框架。如需重新覆盖解压或切换版本，可在下方重新安装。'
+                              : `针对 ${report.unity_version?.raw || 'Unity'} (${report.target_platform} ${report.architecture} ${report.runtime_type}) 推荐匹配构建。部分游戏使用 BepInEx 6 若出现黑屏或不加载，可直接选择 BepInEx 5 经典稳定版。`}
+                          </p>
                         </div>
-                        <p className="hero-action-desc">
-                          {report.installed_frameworks.includes('BepInEx')
-                            ? '当前游戏目录已部署该框架。如需重新覆盖解压或升级，可点击下方重新安装。'
-                            : `根据检测到的 ${report.unity_version?.raw || 'Unity'} (${report.target_platform} ${report.architecture} ${report.runtime_type}) 官方推荐匹配版本，支持原子无损回滚。`}
-                        </p>
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <button
+                            className="primary-btn hero-action-btn"
+                            onClick={() => openInstallDialog(compatReport.recommended_build!.id)}
+                          >
+                            <Download size={16} />
+                            {report.installed_frameworks.includes('BepInEx') ? '重新部署 BepInEx 6' : '安装 BepInEx 6 (v6.0.0)'}
+                          </button>
+                          {bepinex5Build && (
+                            <button
+                              className="secondary-btn hero-action-btn"
+                              style={{ borderColor: 'rgba(16, 185, 129, 0.5)', color: '#34d399' }}
+                              onClick={() => openInstallDialog(bepinex5Build.id)}
+                              title="经典稳定版本，兼容几乎所有 Mono Unity 游戏及成熟旧版 Mod"
+                            >
+                              <Download size={16} />
+                              安装 BepInEx 5 (v5.4 经典兼容版)
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        className="primary-btn hero-action-btn"
-                        onClick={() => openInstallDialog(compatReport.recommended_build!.id)}
-                      >
-                        <Download size={16} />
-                        {report.installed_frameworks.includes('BepInEx') ? '重新部署 / 覆盖安装' : '一键极速安装'}
-                      </button>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </>
               )}
 
@@ -448,52 +465,96 @@ export function App() {
           {activeTab === 'frameworks' && (
             <div className="frameworks-view">
               <div className="section-header">
-                <h3>BepInEx 6 官方构建匹配</h3>
-                <span className="section-sub">针对 {report?.unity_version?.raw || 'Unity'} ({report?.target_platform} {report?.architecture} {report?.runtime_type}) 推荐候选</span>
+                <h3>BepInEx 框架全量构建目录库</h3>
+                <span className="section-sub">支持 BepInEx 6 官方版、BepInEx 5 经典稳定版及 builds.bepinex.dev Bleeding Edge 夜间构建</span>
               </div>
 
-              {compatReport?.recommended_build && (
-                <div className="build-candidate-card recommended">
-                  <div className="build-badge-row">
-                    <span className="pill pill-recommended">★ 最佳匹配推荐</span>
-                    <span className="pill pill-channel">{compatReport.recommended_build.channel} 渠道</span>
-                    <span className="pill pill-mono">{compatReport.recommended_build.runtime_type} 运行时</span>
-                  </div>
-                  <div className="build-main">
-                    <div>
-                      <h4>{compatReport.recommended_build.id}</h4>
-                      <p className="build-meta">官方 release 归档包 · 完全兼容当前游戏 LTS 引擎与 Mono 运行环境</p>
-                    </div>
-                    <button 
-                      className="primary-btn install-btn"
-                      onClick={() => openInstallDialog(compatReport.recommended_build!.id)}
-                    >
-                      <Download size={16} /> 开始安全安装
-                    </button>
-                  </div>
-                  <div className="build-evidence-notes">
-                    <span className="note-item"><ShieldCheck size={14} /> 架构完全匹配: {compatReport.recommended_build.architecture.toUpperCase()}</span>
-                    <span className="note-item"><ShieldCheck size={14} /> 运行时完全匹配: {compatReport.recommended_build.runtime_type}</span>
-                    <span className="note-item"><ShieldCheck size={14} /> 平台完全匹配: {compatReport.recommended_build.target_platform}</span>
-                  </div>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                <button
+                  className={`pill ${frameworkFilter === 'all' ? 'pill-recommended' : ''}`}
+                  onClick={() => setFrameworkFilter('all')}
+                >
+                  全部候选 ({compatReport?.assessments.length || 0})
+                </button>
+                <button
+                  className={`pill ${frameworkFilter === 'v5' ? 'pill-recommended' : ''}`}
+                  onClick={() => setFrameworkFilter('v5')}
+                >
+                  BepInEx 5 经典稳定版 (最强兼容)
+                </button>
+                <button
+                  className={`pill ${frameworkFilter === 'v6' ? 'pill-recommended' : ''}`}
+                  onClick={() => setFrameworkFilter('v6')}
+                >
+                  BepInEx 6 官方 Release
+                </button>
+                <button
+                  className={`pill ${frameworkFilter === 'be' ? 'pill-recommended' : ''}`}
+                  onClick={() => setFrameworkFilter('be')}
+                >
+                  Bleeding Edge (builds.bepinex.dev)
+                </button>
+              </div>
 
-              {compatReport?.assessments.filter(a => a.status === 'incompatible').map((a, idx) => (
-                <div key={idx} className="build-candidate-card disabled">
-                  <div className="build-badge-row">
-                    <span className="pill pill-incompatible">不兼容</span>
-                    <span className="pill pill-il2cpp">{a.build.runtime_type} 运行时</span>
-                  </div>
-                  <div className="build-main">
-                    <div>
-                      <h4>{a.build.id}</h4>
-                      <p className="build-meta">{a.reasons.map(r => r.detail).join('；')}</p>
-                    </div>
-                    <button className="secondary-btn" disabled>禁止安装</button>
-                  </div>
-                </div>
-              ))}
+              <div className="frameworks-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {compatReport?.assessments
+                  .filter((a) => {
+                    if (frameworkFilter === 'v5') return a.build.version.startsWith('5.');
+                    if (frameworkFilter === 'v6') return a.build.version.startsWith('6.') && a.build.channel === 'release';
+                    if (frameworkFilter === 'be') return a.build.channel === 'bleeding_edge' || a.build.channel === 'bleedingedge';
+                    return true;
+                  })
+                  .map((a, idx) => {
+                    const isRecommended = a.build.id === compatReport.recommended_build?.id;
+                    const isV5 = a.build.version.startsWith('5.');
+                    const isBE = a.build.channel === 'bleeding_edge' || a.build.channel === 'bleedingedge';
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`build-candidate-card ${isRecommended ? 'recommended' : ''} ${a.status === 'incompatible' ? 'disabled' : ''}`}
+                      >
+                        <div className="build-badge-row">
+                          {isRecommended && <span className="pill pill-recommended">★ 最佳匹配推荐</span>}
+                          {isV5 && <span className="pill" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.4)' }}>BepInEx 5 经典稳定版</span>}
+                          {isBE && <span className="pill" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' }}>Bleeding Edge (bepinex_be)</span>}
+                          <span className={`pill ${a.status === 'compatible' ? 'pill-confirmed' : 'pill-incompatible'}`}>
+                            {a.status === 'compatible' ? '可兼容安装' : '不兼容'}
+                          </span>
+                          <span className="pill pill-channel">{a.build.channel} 渠道</span>
+                          <span className="pill pill-mono">{a.build.runtime_type} 运行时</span>
+                          <span className="pill pill-il2cpp">{a.build.architecture.toUpperCase()}</span>
+                        </div>
+                        <div className="build-main">
+                          <div>
+                            <h4>{a.build.id}</h4>
+                            <p className="build-meta">
+                              {a.warnings.find(w => w.code === 'BEPINEX_5_STABLE')?.message ||
+                               a.warnings.find(w => w.code === 'BLEEDING_EDGE_BUILD')?.message ||
+                               a.reasons.map(r => r.detail).join('；')}
+                            </p>
+                          </div>
+                          {a.status === 'compatible' ? (
+                            <button
+                              className="primary-btn install-btn"
+                              onClick={() => openInstallDialog(a.build.id)}
+                            >
+                              <Download size={16} /> 安装此版本
+                            </button>
+                          ) : (
+                            <button className="secondary-btn" disabled>禁止安装</button>
+                          )}
+                        </div>
+                        <div className="build-evidence-notes">
+                          <span className="note-item"><ShieldCheck size={14} /> 架构匹配: {a.build.architecture.toUpperCase()}</span>
+                          <span className="note-item"><ShieldCheck size={14} /> 运行时: {a.build.runtime_type}</span>
+                          <span className="note-item"><ShieldCheck size={14} /> 平台: {a.build.target_platform}</span>
+                          <span className="note-item">版本: {a.build.version}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           )}
 
