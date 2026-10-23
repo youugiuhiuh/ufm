@@ -95,6 +95,11 @@ impl BepInExRegistry {
         &self.builds
     }
 
+    /// Returns a slice of all registered BepInEx builds.
+    pub fn list_all(&self) -> &[BepInExBuild] {
+        &self.builds
+    }
+
     /// Predefined official/standard builds for tests and fallback catalogs.
     pub fn official_catalog() -> Self {
         Self::with_builds(vec![
@@ -256,8 +261,10 @@ mod tests {
 
         let mut custom = BepInExRegistry::new();
         assert_eq!(custom.builds().len(), 0);
+        assert_eq!(custom.list_all().len(), 0);
         custom.add(b.clone());
         assert_eq!(custom.builds().len(), 1);
+        assert_eq!(custom.list_all().len(), 1);
         assert_eq!(custom.get(&b.id).unwrap(), b);
     }
 }

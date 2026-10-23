@@ -5,7 +5,6 @@ use ufm_compat::{filter_candidates, CompatibilityReport};
 use ufm_core::EnvironmentReport;
 use ufm_detector::detect;
 use ufm_diagnostics::{DiagnosticEngine, DiagnosticReportData};
-use ufm_installer::plan::InstallPlan;
 use ufm_registry::BepInExRegistry;
 
 #[tauri::command]
@@ -17,8 +16,8 @@ fn detect_environment(game_path: String) -> Result<EnvironmentReport, String> {
 #[tauri::command]
 fn evaluate_compatibility(report: EnvironmentReport) -> Result<CompatibilityReport, String> {
     let registry = BepInExRegistry::official_catalog();
-    let builds = registry.list_all();
-    let compat_report = filter_candidates(&report, &builds);
+    let builds = registry.builds();
+    let compat_report = filter_candidates(&report, builds);
     Ok(compat_report)
 }
 
@@ -95,7 +94,7 @@ fn diagnose_log(
     report: Option<EnvironmentReport>,
 ) -> Result<DiagnosticReportData, String> {
     let engine = DiagnosticEngine::new();
-    let mut diag = engine.analyze(&log_content);
+    let mut diag = engine.analyze_with_env(&log_content, report.as_ref());
     if let Some(r) = report {
         let has_melon = r.installed_frameworks.iter().any(|f| f == "MelonLoader");
         let has_bepinex = r.installed_frameworks.iter().any(|f| f == "BepInEx");
@@ -109,7 +108,7 @@ fn diagnose_log(
                 suggested_fix: "建议仅保留一套框架。若使用 BepInEx，请移除或备份重命名 MelonLoader 目录。".to_string(),
                 references: vec!["https://bepinex.github.io/bepinex_docs/master/articles/advanced/troubleshooting.html".to_string()],
             });
-            diag.total_issues = diag.issues.len();
+            diag = DiagnosticReportData::new(diag.issues);
         }
     }
     Ok(diag)
