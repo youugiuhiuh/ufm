@@ -115,10 +115,11 @@ async fn prepare_install_plan(
         });
     }
 
+    let total_actions = plan.total_actions();
     Ok(InstallPlanPreviewDto {
         package_name: plan.package_name,
         package_version: plan.package_version,
-        total_actions: plan.total_actions(),
+        total_actions,
         backup_dir: backup_dir.to_string_lossy().to_string(),
         changes,
     })
