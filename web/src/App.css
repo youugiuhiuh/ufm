@@ -718,6 +718,115 @@
   padding-top: 0.75rem;
 }
 
+/* 首页一键行动横幅 */
+.hero-action-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(30, 58, 138, 0.22) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  gap: 1.5rem;
+}
+
+.hero-action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hero-action-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.05rem;
+}
+
+.hero-action-desc {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.hero-action-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag-none {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+}
+
+.tag-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* 设置中心样式 */
+.settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.settings-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.settings-card h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.settings-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem 0;
+}
+
+.setting-control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.65rem;
+}
+
+.setting-select {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  outline: none;
+}
+
 .placeholder-view {
   display: flex;
   flex-direction: column;

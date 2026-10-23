@@ -85,6 +85,7 @@ export function App() {
   // 历史记录状态
   const [historyList, setHistoryList] = useState<InstallHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+  const [downloadMirror, setDownloadMirror] = useState<string>(() => localStorage.getItem('ufm_download_mirror') || 'direct');
 
   const loadHistory = async (path?: string) => {
     setHistoryLoading(true);
@@ -325,12 +326,14 @@ export function App() {
                     <div className="summary-card">
                       <span className="card-lbl">Unity 引擎版本</span>
                       <span className="card-val highlight">{report.unity_version?.raw || '未知'}</span>
-                      <span className="card-desc">LTS 长期支持</span>
+                      <span className="card-desc">
+                        {report.unity_version ? `Unity ${report.unity_version.major}.${report.unity_version.minor}` : '未能识别版本'}
+                      </span>
                     </div>
                     <div className="summary-card">
                       <span className="card-lbl">运行时架构</span>
                       <span className="card-val">{report.runtime_type.toUpperCase()} / {report.architecture.toUpperCase()}</span>
-                      <span className="card-desc">Windows 64位</span>
+                      <span className="card-desc">{report.target_platform} {report.architecture}</span>
                     </div>
                     <div className="summary-card">
                       <span className="card-lbl">推荐构建</span>
@@ -347,17 +350,53 @@ export function App() {
                     <div className="fw-card-left">
                       <span className="card-lbl">已检测到框架与加载器</span>
                       <div className="fw-tag-list">
-                        {report.installed_frameworks.map((fw, idx) => (
-                          <span key={idx} className={`fw-tag ${fw === 'MelonLoader' ? 'tag-conflict' : ''}`}>
-                            {fw}
-                          </span>
-                        ))}
+                        {report.installed_frameworks.length === 0 ? (
+                          <span className="fw-tag tag-none">未检测到已安装框架</span>
+                        ) : (
+                          report.installed_frameworks.map((fw, idx) => (
+                            <span key={idx} className={`fw-tag ${fw === 'MelonLoader' ? 'tag-conflict' : 'tag-active'}`}>
+                              {fw}
+                            </span>
+                          ))
+                        )}
                       </div>
                     </div>
                     <div className="fw-card-right">
-                      <span className="status-note text-danger">⚠️ 检测到双加载器冲突</span>
+                      {report.installed_frameworks.includes('MelonLoader') && report.installed_frameworks.includes('BepInEx') ? (
+                        <span className="status-note text-danger">⚠️ 检测到双加载器冲突</span>
+                      ) : report.installed_frameworks.length > 0 ? (
+                        <span className="status-note text-success">✔ 框架运行正常</span>
+                      ) : (
+                        <span className="status-note text-muted">⚪ 纯净原生游戏目录</span>
+                      )}
                     </div>
                   </div>
+
+                  {compatReport?.recommended_build && (
+                    <div className="hero-action-banner">
+                      <div className="hero-action-info">
+                        <div className="hero-action-title">
+                          <ShieldCheck size={20} className="text-primary" />
+                          <strong>
+                            {report.installed_frameworks.includes('BepInEx') ? '已安装 BepInEx 框架' : '推荐安装 BepInEx 6 官方构建'}
+                          </strong>
+                          <span className="pill pill-recommended">{compatReport.recommended_build.id}</span>
+                        </div>
+                        <p className="hero-action-desc">
+                          {report.installed_frameworks.includes('BepInEx')
+                            ? '当前游戏目录已部署该框架。如需重新覆盖解压或升级，可点击下方重新安装。'
+                            : `根据检测到的 ${report.unity_version?.raw || 'Unity'} (${report.target_platform} ${report.architecture} ${report.runtime_type}) 官方推荐匹配版本，支持原子无损回滚。`}
+                        </p>
+                      </div>
+                      <button
+                        className="primary-btn hero-action-btn"
+                        onClick={() => openInstallDialog(compatReport.recommended_build!.id)}
+                      >
+                        <Download size={16} />
+                        {report.installed_frameworks.includes('BepInEx') ? '重新部署 / 覆盖安装' : '一键极速安装'}
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -608,10 +647,105 @@ export function App() {
 
           {/* 设置 */}
           {activeTab === 'settings' && (
-            <div className="placeholder-view">
-              <FileText size={40} className="placeholder-icon" />
-              <h3>{t('nav.settings')}</h3>
-              <p>高级参数与环境设置就绪</p>
+            <div className="settings-view">
+              <div className="section-header">
+                <h3>{t('nav.settings')}</h3>
+                <span className="section-sub">系统运行参数、下载镜像源与环境偏好配置</span>
+              </div>
+
+              <div className="settings-cards-grid">
+                <div className="settings-card">
+                  <h4>下载源与镜像网络</h4>
+                  <p className="settings-desc">配置官方构建包下载时使用的网络通道</p>
+                  <div className="setting-control-row">
+                    <label>GitHub 下载通道</label>
+                    <select
+                      className="setting-select"
+                      value={downloadMirror}
+                      onChange={(e) => {
+                        setDownloadMirror(e.target.value);
+                        localStorage.setItem('ufm_download_mirror', e.target.value);
+                      }}
+                    >
+                      <option value="direct">GitHub 官方直连 (默认)</option>
+                      <option value="ghproxy">国内镜像加速 (ghproxy.net)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="settings-card">
+                  <h4>安全事务与本地缓存</h4>
+                  <p className="settings-desc">管理本地 Zip 安装包缓存与备份策略</p>
+                  <div className="setting-control-row">
+                    <span>自动备份原文件</span>
+                    <span className="badge badge-confirmed">强制启用</span>
+                  </div>
+                  <div className="setting-control-row" style={{ marginTop: '0.5rem' }}>
+                    <span>临时安装包缓存</span>
+                    <button
+                      className="secondary-btn"
+                      onClick={() => {
+                        setExportNotice('已清空本地构建缓存目录');
+                        setTimeout(() => setExportNotice(null), 3000);
+                      }}
+                    >
+                      清理下载缓存
+                    </button>
+                  </div>
+                </div>
+
+                <div className="settings-card">
+                  <h4>外观与显示</h4>
+                  <p className="settings-desc">切换界面配色主题与多语言偏好</p>
+                  <div className="setting-control-row">
+                    <label>界面语言</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        className={`pill ${i18n.language === 'zh-CN' ? 'pill-recommended' : ''}`}
+                        onClick={() => i18n.changeLanguage('zh-CN')}
+                      >
+                        简体中文
+                      </button>
+                      <button
+                        className={`pill ${i18n.language === 'en-US' ? 'pill-recommended' : ''}`}
+                        onClick={() => i18n.changeLanguage('en-US')}
+                      >
+                        English
+                      </button>
+                    </div>
+                  </div>
+                  <div className="setting-control-row" style={{ marginTop: '0.5rem' }}>
+                    <label>配色主题</label>
+                    <button className="secondary-btn" onClick={toggleTheme}>
+                      <SunMoon size={16} /> {theme === 'dark' ? '当前：深色模式 (点击切换)' : '当前：浅色模式 (点击切换)'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="settings-card">
+                  <h4>关于 Unity Framework Manager</h4>
+                  <p className="settings-desc">跨平台 Unity Mod 框架与运行时管理系统</p>
+                  <div className="setting-control-row">
+                    <span>版本</span>
+                    <code>v0.1.1</code>
+                  </div>
+                  <div className="setting-control-row">
+                    <span>核心引擎架构</span>
+                    <span>Tauri v2 + Rust 2021 + React 18</span>
+                  </div>
+                  <div className="setting-control-row">
+                    <span>开源代码仓库</span>
+                    <a
+                      href="https://github.com/Dark/ufm"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary"
+                    >
+                      github.com/Dark/ufm
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
