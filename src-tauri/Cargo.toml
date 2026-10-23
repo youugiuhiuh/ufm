@@ -5,11 +5,11 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
-[[bin]]
-name = "ufm"
-path = "src/main.rs"
+[build-dependencies]
+tauri-build = { workspace = true }
 
 [dependencies]
+tauri = { workspace = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
