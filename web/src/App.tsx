@@ -788,7 +788,7 @@ export function App() {
                   <p className="settings-desc">跨平台 Unity Mod 框架与运行时管理系统</p>
                   <div className="setting-control-row">
                     <span>版本</span>
-                    <code>v0.1.2</code>
+                    <code>v0.1.3</code>
                   </div>
                   <div className="setting-control-row">
                     <span>核心引擎架构</span>
