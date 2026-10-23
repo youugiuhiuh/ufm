@@ -1,6 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
+import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData, InstallHistoryItem } from './types';
 
 // 检查是否运行在真正的 Tauri 桌面环境中
 export const isTauriEnvironment = (): boolean => {
@@ -74,12 +74,28 @@ export async function executeInstall(gamePath: string, buildId: string): Promise
 }
 
 // 5. 诊断运行日志与环境
-export async function diagnoseLogs(_gamePath: string, report?: EnvironmentReport): Promise<DiagnosticReportData> {
+export async function diagnoseLogs(gamePath?: string, logContent?: string, report?: EnvironmentReport): Promise<DiagnosticReportData> {
   ensureTauri();
-  return await invoke<DiagnosticReportData>('diagnose_log', { logContent: '', report });
+  return await invoke<DiagnosticReportData>('diagnose_log', {
+    gamePath: gamePath || null,
+    logContent: logContent || null,
+    report: report || null,
+  });
 }
 
-// 6. 导出脱敏报告 (Markdown 格式)
+// 6. 获取安装操作历史清单
+export async function getInstallHistory(gamePath?: string): Promise<InstallHistoryItem[]> {
+  ensureTauri();
+  return await invoke<InstallHistoryItem[]>('get_install_history', { gamePath: gamePath || null });
+}
+
+// 7. 执行安装事务一键回滚
+export async function rollbackInstallation(manifestId: string, gamePath: string): Promise<boolean> {
+  ensureTauri();
+  return await invoke<boolean>('rollback_installation', { manifestId, gamePath });
+}
+
+// 8. 导出脱敏报告 (Markdown 格式)
 export async function exportReportMarkdown(report: EnvironmentReport, diagnostics?: DiagnosticReportData): Promise<string> {
   const date = new Date().toISOString().split('T')[0];
   return `# Unity Framework Manager (UFM) 诊断与检测报告

@@ -103,4 +103,16 @@ export interface DiagnosticReportData {
   summary: string;
 }
 
+export interface InstallHistoryItem {
+  manifest_id: string;
+  package_name: string;
+  package_version: string;
+  timestamp: number;
+  target_dir: string;
+  backup_dir: string;
+  installed_files_count: number;
+  backup_records_count: number;
+  can_rollback: boolean;
+}
+
 

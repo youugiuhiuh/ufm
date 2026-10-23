@@ -16,10 +16,12 @@ import {
   Download,
   ShieldCheck,
   FileText,
-  Loader2
+  Loader2,
+  RotateCcw,
+  Clock
 } from 'lucide-react';
-import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
-import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall, diagnoseLogs, exportReportMarkdown, pickGameDirectoryOrFile } from './api';
+import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData, InstallHistoryItem } from './types';
+import { detectEnvironment, evaluateCompatibility, prepareInstallPlan, executeInstall, diagnoseLogs, exportReportMarkdown, pickGameDirectoryOrFile, getInstallHistory, rollbackInstallation } from './api';
 import './App.css';
 
 export function App() {
@@ -77,6 +79,43 @@ export function App() {
   // 诊断与导出状态
   const [diagData, setDiagData] = useState<DiagnosticReportData | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [customLogText, setCustomLogText] = useState<string>('');
+  const [showLogInput, setShowLogInput] = useState<boolean>(false);
+
+  // 历史记录状态
+  const [historyList, setHistoryList] = useState<InstallHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+
+  const loadHistory = async (path?: string) => {
+    setHistoryLoading(true);
+    try {
+      const items = await getInstallHistory(path || inputPath || undefined);
+      setHistoryList(items);
+    } catch (e: unknown) {
+      console.error('加载历史记录失败:', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleRollback = async (manifestId: string, gamePath: string) => {
+    if (!confirm(`确认回滚此安装记录 (${manifestId})？已写入的文件将被安全移除，被修改的原文件将被恢复。`)) return;
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      await rollbackInstallation(manifestId, gamePath);
+      setExportNotice('安装记录回滚成功！原文件已安全恢复。');
+      await loadHistory(gamePath);
+      if (inputPath.trim()) {
+        await handleScan(inputPath);
+      }
+      setTimeout(() => setExportNotice(null), 4000);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleScan = async (path: string) => {
     if (!path.trim()) return;
@@ -87,8 +126,25 @@ export function App() {
       setReport(rep);
       const compat = await evaluateCompatibility(rep);
       setCompatReport(compat);
-      const diags = await diagnoseLogs(path, rep);
+      const diags = await diagnoseLogs(path, customLogText || undefined, rep);
       setDiagData(diags);
+      await loadHistory(path);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDiagnoseCustomLog = async () => {
+    if (!customLogText.trim()) return;
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const diags = await diagnoseLogs(inputPath || undefined, customLogText, report || undefined);
+      setDiagData(diags);
+      setExportNotice('自定义日志实时分析完成！');
+      setTimeout(() => setExportNotice(null), 3000);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
     } finally {
@@ -410,8 +466,94 @@ export function App() {
                   <h3>运行日志与环境异常诊断</h3>
                   <span className="section-sub">自动扫描 preloader 日志与 Doorstop 配置文件</span>
                 </div>
-                <button className="secondary-btn export-btn" onClick={handleExportReport}>
-                  <FileText size={16} /> 导出脱敏诊断报告
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="secondary-btn" onClick={() => setShowLogInput(!showLogInput)}>
+                    {showLogInput ? '隐藏日志输入框' : '粘贴日志分析'}
+                  </button>
+                  <button className="secondary-btn export-btn" onClick={handleExportReport}>
+                    <FileText size={16} /> 导出脱敏诊断报告
+                  </button>
+                </div>
+              </div>
+
+              {exportNotice && (
+                <div className="alert-banner alert-success">
+                  <CheckCircle2 size={18} />
+                  <div className="alert-text">{exportNotice}</div>
+                </div>
+              )}
+
+              {showLogInput && (
+                <div className="custom-log-card">
+                  <h4>粘贴 Unity Player.log 或 BepInEx 日志片段</h4>
+                  <textarea
+                    className="custom-log-textarea"
+                    placeholder="在此粘贴崩溃或异常日志行，例如 DllNotFoundException, BadImageFormatException, Doorstop init failed 等..."
+                    value={customLogText}
+                    onChange={(e) => setCustomLogText(e.target.value)}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                    <button className="primary-btn" onClick={handleDiagnoseCustomLog} disabled={loading}>
+                      {loading ? <Loader2 size={16} className="spin-icon" /> : '立即执行规则分析'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="diag-cards-list">
+                {(!diagData || diagData.issues.length === 0) ? (
+                  <div className="diag-clean-card">
+                    <CheckCircle2 size={36} className="text-success" />
+                    <h4>未发现运行异常或加载器配置冲突</h4>
+                    <p>{diagData?.summary || '系统已扫描游戏目录日志与引导器配置，当前环境状态良好，无已知崩溃风险规则匹配。'}</p>
+                  </div>
+                ) : (
+                  diagData.issues.map((issue, idx) => (
+                    <div key={idx} className={`diag-card ${issue.risk_level === 'critical' ? 'danger' : 'warning'}`}>
+                      <div className="diag-header">
+                        {issue.risk_level === 'critical' ? (
+                          <XCircle size={18} className="text-danger" />
+                        ) : (
+                          <AlertTriangle size={18} className="text-warning" />
+                        )}
+                        <h4>{issue.title}</h4>
+                        <span className="diag-rule-code"><code>{issue.rule_id}</code></span>
+                      </div>
+                      <p className="diag-desc">{issue.description}</p>
+                      
+                      {issue.matched_lines.length > 0 && (
+                        <div className="diag-snippets">
+                          <span className="snippet-title">匹配到的日志 / 文件证据：</span>
+                          <pre className="snippet-box">
+                            {issue.matched_lines.join('\n')}
+                          </pre>
+                        </div>
+                      )}
+
+                      <div className="diag-fix-box">
+                        <strong>修复建议：</strong> {issue.suggested_fix}
+                      </div>
+
+                      <div className="diag-action">
+                        <button className="secondary-btn">安全备份并解决该问题</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 操作历史 */}
+          {activeTab === 'history' && (
+            <div className="history-view">
+              <div className="section-header-row">
+                <div className="section-header">
+                  <h3>框架安装与操作历史 (无损回滚)</h3>
+                  <span className="section-sub">记录所有通过 UFM 执行的原子安装清单与原文件备份，支持一键还原</span>
+                </div>
+                <button className="secondary-btn" onClick={() => loadHistory()} disabled={historyLoading}>
+                  <RotateCcw size={16} className={historyLoading ? 'spin-icon' : ''} /> 刷新历史
                 </button>
               </div>
 
@@ -422,48 +564,54 @@ export function App() {
                 </div>
               )}
 
-              <div className="diag-cards-list">
-                {diagData?.issues.map((issue, idx) => (
-                  <div key={idx} className={`diag-card ${issue.risk_level === 'critical' ? 'danger' : 'warning'}`}>
-                    <div className="diag-header">
-                      {issue.risk_level === 'critical' ? (
-                        <XCircle size={18} className="text-danger" />
-                      ) : (
-                        <AlertTriangle size={18} className="text-warning" />
-                      )}
-                      <h4>{issue.title}</h4>
-                      <span className="diag-rule-code"><code>{issue.rule_id}</code></span>
-                    </div>
-                    <p className="diag-desc">{issue.description}</p>
-                    
-                    {issue.matched_lines.length > 0 && (
-                      <div className="diag-snippets">
-                        <span className="snippet-title">匹配到的日志 / 文件证据：</span>
-                        <pre className="snippet-box">
-                          {issue.matched_lines.join('\n')}
-                        </pre>
+              {historyList.length === 0 ? (
+                <div className="diag-clean-card">
+                  <Clock size={36} className="text-muted" />
+                  <h4>暂无框架安装历史记录</h4>
+                  <p>在安装框架后，系统会自动保存包含文件变动与原文件备份的原子清单，支持一键无损回滚。</p>
+                </div>
+              ) : (
+                <div className="history-list">
+                  {historyList.map((item) => (
+                    <div key={item.manifest_id} className="history-card">
+                      <div className="history-header">
+                        <div>
+                          <h4 style={{ margin: 0 }}>{item.package_name} <span className="pill pill-confirmed">v{item.package_version}</span></h4>
+                          <span className="history-meta">
+                            操作时间: {new Date(item.timestamp * 1000).toLocaleString()} · 清单 ID: <code>{item.manifest_id}</code>
+                          </span>
+                        </div>
+                        {item.can_rollback && (
+                          <button
+                            className="secondary-btn text-danger"
+                            onClick={() => handleRollback(item.manifest_id, item.target_dir)}
+                            disabled={loading}
+                          >
+                            <RotateCcw size={14} /> 一键无损回滚
+                          </button>
+                        )}
                       </div>
-                    )}
-
-                    <div className="diag-fix-box">
-                      <strong>修复建议：</strong> {issue.suggested_fix}
+                      <div className="history-details">
+                        <span>游戏目标目录: <code>{item.target_dir}</code></span>
+                        <span>备份保存目录: <code>{item.backup_dir}</code></span>
+                      </div>
+                      <div className="history-footer">
+                        <span>新增写入文件: <strong>{item.installed_files_count}</strong> 项</span>
+                        <span>自动备份原文件: <strong>{item.backup_records_count}</strong> 项</span>
+                      </div>
                     </div>
-
-                    <div className="diag-action">
-                      <button className="secondary-btn">安全备份并解决该问题</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* 历史与设置等 */}
-          {(activeTab === 'history' || activeTab === 'settings') && (
+          {/* 设置 */}
+          {activeTab === 'settings' && (
             <div className="placeholder-view">
               <FileText size={40} className="placeholder-icon" />
-              <h3>{t(`nav.${activeTab}`)}</h3>
-              <p>操作事务回滚与参数设置模块就绪</p>
+              <h3>{t('nav.settings')}</h3>
+              <p>高级参数与环境设置就绪</p>
             </div>
           )}
         </div>
