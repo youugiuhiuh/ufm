@@ -1,10 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use ufm_compat::{filter_candidates, CompatibilityReport};
 use ufm_core::EnvironmentReport;
 use ufm_detector::detect;
 use ufm_diagnostics::{DiagnosticEngine, DiagnosticReportData};
+use ufm_download::DownloadManager;
+use ufm_installer::{ArchiveExtractor, TransactionExecutor};
 use ufm_registry::BepInExRegistry;
 
 #[tauri::command]
@@ -38,53 +41,115 @@ struct InstallActionDto {
     will_backup: bool,
 }
 
-#[tauri::command]
-fn prepare_install_plan(
-    game_path: String,
-    build_id: String,
-) -> Result<InstallPlanPreviewDto, String> {
-    let preview = InstallPlanPreviewDto {
-        package_name: build_id,
-        package_version: "6.0.0-pre.1".to_string(),
-        total_actions: 4,
-        backup_dir: format!("{game_path}/.ufm_backups/latest"),
-        changes: vec![
-            InstallActionDto {
-                relative_path: "winhttp.dll".to_string(),
-                action_type: "modify".to_string(),
-                size: 26624,
-                will_backup: true,
-            },
-            InstallActionDto {
-                relative_path: "doorstop_config.ini".to_string(),
-                action_type: "modify".to_string(),
-                size: 1451,
-                will_backup: true,
-            },
-            InstallActionDto {
-                relative_path: "BepInEx/core/BepInEx.Core.dll".to_string(),
-                action_type: "add".to_string(),
-                size: 428032,
-                will_backup: false,
-            },
-            InstallActionDto {
-                relative_path: "BepInEx/core/BepInEx.Unity.Mono.Preloader.dll".to_string(),
-                action_type: "add".to_string(),
-                size: 98304,
-                will_backup: false,
-            },
-        ],
-    };
-    Ok(preview)
+fn get_cache_dir() -> PathBuf {
+    std::env::temp_dir().join("ufm_cache")
+}
+
+fn make_backup_dir(target_dir: &Path) -> PathBuf {
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    target_dir.join(".ufm_backups").join(format!("backup_{ts}"))
+}
+
+async fn download_build_zip(build_id: &str) -> Result<(String, String, PathBuf), String> {
+    let registry = BepInExRegistry::official_catalog();
+    let build = registry
+        .get(build_id)
+        .ok_or_else(|| format!("未在目录库中找到目标构建: {build_id}"))?;
+
+    let cache_dir = get_cache_dir();
+    let downloader =
+        DownloadManager::new(&cache_dir).map_err(|e| format!("初始化下载缓存目录失败: {e}"))?;
+
+    let filename = build
+        .filename
+        .clone()
+        .unwrap_or_else(|| format!("{build_id}.zip"));
+
+    let zip_path = downloader
+        .fetch_with_verify(&build.download_url, &build.sha256, &filename)
+        .await
+        .map_err(|e| format!("下载或加载构建包失败: {e}"))?;
+
+    Ok((build.id.clone(), build.version.clone(), zip_path))
 }
 
 #[tauri::command]
-fn execute_install(game_path: String, build_id: String) -> Result<bool, String> {
+async fn prepare_install_plan(
+    game_path: String,
+    build_id: String,
+) -> Result<InstallPlanPreviewDto, String> {
+    let (pkg_name, pkg_ver, zip_path) = download_build_zip(&build_id).await?;
+    let target_dir = Path::new(&game_path);
+    if !target_dir.exists() {
+        return Err(format!("游戏目录不存在: {game_path}"));
+    }
+
+    let backup_dir = make_backup_dir(target_dir);
+    let plan = ArchiveExtractor::build_plan_from_zip(
+        &zip_path,
+        &pkg_name,
+        &pkg_ver,
+        target_dir,
+        &backup_dir,
+    )
+    .map_err(|e| format!("解压构建包并生成安装计划失败: {e}"))?;
+
+    let mut changes = Vec::new();
+    for m in &plan.modifies {
+        changes.push(InstallActionDto {
+            relative_path: m.relative_path.to_string_lossy().to_string(),
+            action_type: "modify".to_string(),
+            size: m.new_size,
+            will_backup: true,
+        });
+    }
+    for a in &plan.adds {
+        changes.push(InstallActionDto {
+            relative_path: a.relative_path.to_string_lossy().to_string(),
+            action_type: "add".to_string(),
+            size: a.expected_size,
+            will_backup: false,
+        });
+    }
+
+    Ok(InstallPlanPreviewDto {
+        package_name: plan.package_name,
+        package_version: plan.package_version,
+        total_actions: plan.total_actions(),
+        backup_dir: backup_dir.to_string_lossy().to_string(),
+        changes,
+    })
+}
+
+#[tauri::command]
+async fn execute_install(game_path: String, build_id: String) -> Result<bool, String> {
+    let (pkg_name, pkg_ver, zip_path) = download_build_zip(&build_id).await?;
+    let target_dir = Path::new(&game_path);
+    if !target_dir.exists() {
+        return Err(format!("游戏目录不存在: {game_path}"));
+    }
+
+    let backup_dir = make_backup_dir(target_dir);
+    let plan = ArchiveExtractor::build_plan_from_zip(
+        &zip_path,
+        &pkg_name,
+        &pkg_ver,
+        target_dir,
+        &backup_dir,
+    )
+    .map_err(|e| format!("解压构建包失败: {e}"))?;
+
+    TransactionExecutor::execute(&plan).map_err(|e| format!("执行原子安装事务失败: {e}"))?;
+
     tracing::info!(
-        "Executing atomic install for {} on game_path {}",
+        "Successfully completed atomic install of {} into {}",
         build_id,
         game_path
     );
+
     Ok(true)
 }
 

@@ -68,7 +68,8 @@ mod tests {
     fn create_test_zip(dest: &Path, files: &[(&str, &[u8])]) {
         let file = File::create(dest).unwrap();
         let mut zip = ZipWriter::new(file);
-        let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        let options =
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
         for (name, content) in files {
             zip.start_file(*name, options).unwrap();

@@ -1,22 +1,35 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import type { EnvironmentReport, CompatibilityReport, InstallPlanPreview, DiagnosticReportData } from './types';
 
 // 检查是否运行在真正的 Tauri 桌面环境中
 export const isTauriEnvironment = (): boolean => {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  if (typeof window === 'undefined') return false;
+  return (
+    isTauri() ||
+    'isTauri' in window ||
+    '__TAURI_INTERNALS__' in window ||
+    '__TAURI__' in window
+  );
 };
+
+function ensureTauri(): void {
+  if (!isTauriEnvironment()) {
+    throw new Error(
+      '当前未连接到 Tauri 桌面运行时（运行于纯 Web 模式）。检测、评估与安装需要直接操作本地文件系统，请在 UFM 桌面客户端中运行。'
+    );
+  }
+}
 
 // 0. 打开系统原生文件/目录选择器
 export async function pickGameDirectoryOrFile(): Promise<string | null> {
   if (!isTauriEnvironment()) {
-    // 纯 Web 环境使用 HTML 目录拾取或提示
-    return prompt("Web 预览模式：请输入或粘贴 Unity 游戏目录路径：", "D:/Games/MyUnityGame");
+    return prompt('Web 预览模式：请输入或粘贴 Unity 游戏目录路径：', '');
   }
 
   try {
     const selected = await openDialog({
-      title: "选择 Unity 游戏根目录或可执行文件",
+      title: '选择 Unity 游戏根目录或可执行文件',
       multiple: false,
       directory: true, // 优先选择游戏根目录
     });
@@ -31,200 +44,38 @@ export async function pickGameDirectoryOrFile(): Promise<string | null> {
 
     return selected;
   } catch (err) {
-    console.error("打开原生文件选择器失败:", err);
+    console.error('打开原生文件选择器失败:', err);
     return null;
   }
 }
 
-
 // 1. 调用 Rust 核心检测环境
 export async function detectEnvironment(gamePath: string): Promise<EnvironmentReport> {
-  if (!isTauriEnvironment()) {
-    console.warn('[UFM] 纯 Web 预览环境，执行前端无损模拟分析');
-    // 依据用户输入的实际目录名动态推断，不再使用固定写死名称
-    const trimmed = gamePath.replace(/[/\\]+$/, '');
-    const folderName = trimmed.split(/[/\\]/).pop() || 'UnityGame';
-    
-    return {
-      game_path: gamePath,
-      data_dir: `${trimmed}/${folderName}_Data`,
-      unity_version: {
-        raw: "2021.3.16f1",
-        major: 2021,
-        minor: 3,
-        patch: 16,
-        suffix: "f1"
-      },
-      runtime_type: "mono",
-      architecture: "x64",
-      target_platform: "windows",
-      installed_frameworks: ["BepInEx", "Doorstop"],
-      overall_confidence: "confirmed",
-      evidences: [
-        { key: "unity.data_dir", description: `找到 Unity 游戏数据目录: ${folderName}_Data`, confidence: "confirmed" },
-        { key: "unity.version", description: "从 globalgamemanagers 提取版本: 2021.3.16f1", confidence: "confirmed" },
-        { key: "mono_bleeding_edge", description: "MonoBleedingEdge 运行环境完整", confidence: "confirmed" },
-        { key: "managed_assemblies", description: "包含 Managed/Assembly-CSharp.dll 及核心程序集", confidence: "high_probability" },
-        { key: "binary.arch", description: "64 位 PE 结构可执行程序", confidence: "confirmed" },
-        { key: "framework.bepinex", description: "已安装 BepInEx 核心库 (BepInEx.Core.dll)", confidence: "confirmed" },
-        { key: "framework.doorstop", description: "已配置 Doorstop 引导器 (doorstop_config.ini)", confidence: "confirmed" }
-      ]
-    };
-  }
-
+  ensureTauri();
   return await invoke<EnvironmentReport>('detect_environment', { gamePath });
 }
 
-
 // 2. 调用 Rust 评估候选构建兼容性
 export async function evaluateCompatibility(report: EnvironmentReport): Promise<CompatibilityReport> {
-  if (!isTauriEnvironment()) {
-    return {
-      assessments: [
-        {
-          build: {
-            id: "bepinex-v6.0.0-pre.1-win-x64-mono",
-            version: "6.0.0-pre.1",
-            channel: "release",
-            runtime_type: "mono",
-            architecture: "x64",
-            target_platform: "windows",
-            download_url: "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityMono_x64_6.0.0-pre.1.zip",
-            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-          },
-          status: "compatible",
-          reasons: [
-            { aspect: "runtime", state: "matched", detail: "Runtime matches detected Mono." },
-            { aspect: "architecture", state: "matched", detail: "Architecture matches detected X64." },
-            { aspect: "platform", state: "matched", detail: "Platform matches detected Windows." }
-          ],
-          warnings: []
-        },
-        {
-          build: {
-            id: "bepinex-v6.0.0-pre.1-win-x64-il2cpp",
-            version: "6.0.0-pre.1",
-            channel: "release",
-            runtime_type: "il2cpp",
-            architecture: "x64",
-            target_platform: "windows",
-            download_url: "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityIL2CPP_x64_6.0.0-pre.1.zip",
-            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-          },
-          status: "incompatible",
-          reasons: [
-            { aspect: "runtime", state: "mismatched", detail: "Runtime mismatch: build targets Il2Cpp, but game is Mono." }
-          ],
-          warnings: [
-            { code: "IL2CPP_NOTICE", message: "IL2CPP 构建无法在 Mono 游戏中执行", severity: "risk" }
-          ]
-        }
-      ],
-      recommended_build: {
-        id: "bepinex-v6.0.0-pre.1-win-x64-mono",
-        version: "6.0.0-pre.1",
-        channel: "release",
-        runtime_type: "mono",
-        architecture: "x64",
-        target_platform: "windows",
-        download_url: "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityMono_x64_6.0.0-pre.1.zip",
-        sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      },
-      global_warnings: []
-    };
-  }
-
+  ensureTauri();
   return await invoke<CompatibilityReport>('evaluate_compatibility', { report });
 }
 
-// 3. 生成安装计划预览（新增、修改、备份清单）
+// 3. 生成安装计划预览（真实解压 Zip 并计算文件变动与备份清单）
 export async function prepareInstallPlan(gamePath: string, buildId: string): Promise<InstallPlanPreview> {
-  if (!isTauriEnvironment()) {
-    return {
-      package_name: buildId,
-      package_version: "6.0.0-pre.1",
-      total_actions: 4,
-      backup_dir: `${gamePath}/.ufm_backups/20261022_195500`,
-      changes: [
-        {
-          relative_path: "winhttp.dll",
-          action_type: "modify",
-          size: 26624,
-          will_backup: true
-        },
-        {
-          relative_path: "doorstop_config.ini",
-          action_type: "modify",
-          size: 1451,
-          will_backup: true
-        },
-        {
-          relative_path: "BepInEx/core/BepInEx.Core.dll",
-          action_type: "add",
-          size: 428032,
-          will_backup: false
-        },
-        {
-          relative_path: "BepInEx/core/BepInEx.Unity.Mono.Preloader.dll",
-          action_type: "add",
-          size: 98304,
-          will_backup: false
-        }
-      ]
-    };
-  }
-
+  ensureTauri();
   return await invoke<InstallPlanPreview>('prepare_install_plan', { gamePath, buildId });
 }
 
-// 4. 执行原子安装事务
+// 4. 执行原子安装事务（真实执行写入与备份）
 export async function executeInstall(gamePath: string, buildId: string): Promise<boolean> {
-  if (!isTauriEnvironment()) {
-    console.log(`[UFM 模拟安装] 针对 ${gamePath} 安装 ${buildId} 成功`);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return true;
-  }
-
+  ensureTauri();
   return await invoke<boolean>('execute_install', { gamePath, buildId });
 }
 
 // 5. 诊断运行日志与环境
-export async function diagnoseLogs(gamePath: string, report?: EnvironmentReport): Promise<DiagnosticReportData> {
-  if (!isTauriEnvironment()) {
-    console.log(`[UFM 诊断] 分析路径: ${gamePath}`);
-    return {
-      total_issues: 2,
-      max_risk: 'warning',
-      summary: '检测到 2 项需关注的运行环境与配置问题',
-      issues: [
-        {
-          rule_id: 'LOADER_CONFLICT_MELON_BEPINEX',
-          title: 'MelonLoader 与 BepInEx 混装共存',
-          risk_level: 'warning',
-          description: '目录中同时检测到 MelonLoader (.net6) 和 BepInEx 运行库，两者可能竞争劫持 Unity 运行时导致崩溃。',
-          matched_lines: [
-            'Found MelonLoader/net6/MelonLoader.dll',
-            'Found BepInEx/core/BepInEx.Core.dll'
-          ],
-          suggested_fix: '建议仅保留一套框架。若使用 BepInEx，请移除或备份重命名 MelonLoader 目录。',
-          references: ['https://bepinex.github.io/bepinex_docs/master/articles/advanced/troubleshooting.html']
-        },
-        {
-          rule_id: 'MULTIPLE_HOOK_DLLS',
-          title: '检测到多个代理注入钩子 (winhttp.dll / version.dll)',
-          risk_level: 'warning',
-          description: '游戏根目录下同时存在两个常用注入 DLL，可能产生多重链式拦截导致初始化死锁。',
-          matched_lines: [
-            'Found winhttp.dll (Doorstop proxy)',
-            'Found version.dll (Proxy loader)'
-          ],
-          suggested_fix: '检查并移除多余的 DLL 钩子，标准 BepInEx 仅需 winhttp.dll。',
-          references: []
-        }
-      ]
-    };
-  }
-
+export async function diagnoseLogs(_gamePath: string, report?: EnvironmentReport): Promise<DiagnosticReportData> {
+  ensureTauri();
   return await invoke<DiagnosticReportData>('diagnose_log', { logContent: '', report });
 }
 
@@ -238,6 +89,8 @@ export async function exportReportMarkdown(report: EnvironmentReport, diagnostic
 ---
 
 ## 1. 游戏环境概览
+- **游戏路径：** ${report.game_path}
+- **数据目录：** ${report.data_dir || '未检测到'}
 - **Unity 版本：** ${report.unity_version?.raw || '未知'}
 - **运行时类型：** ${report.runtime_type.toUpperCase()}
 - **程序架构：** ${report.architecture.toUpperCase()}
@@ -253,5 +106,3 @@ ${diagnostics?.issues.map(i => `### [${i.risk_level.toUpperCase()}] ${i.title}\n
 *本报告由 UFM 客户端离线生成，已自动脱敏敏感路径信息。*
 `;
 }
-
-

@@ -7,7 +7,9 @@ use ufm_registry::BepInExRegistry;
 
 #[tokio::main]
 async fn main() {
-    let original_game = Path::new("/run/media/ub/系统/Users/asus/Downloads/Telegram Desktop/3D!かすたむオカズメーカー/3D!かすたむオカズメーカー/GameCore");
+    let args: Vec<String> = std::env::args().collect();
+    let default_path = "/run/media/ub/Games/[SLG]糟糕！秋千少女的自慰大作战  やばっ！ブランコ少女のオナニー大作戦  DL官方中文".to_string();
+    let original_game = Path::new(args.get(1).unwrap_or(&default_path));
 
     println!("============================================================");
     println!("  UFM 端到端真实环境流水线演练 (沙盒保护机制)");
@@ -29,10 +31,16 @@ async fn main() {
     // 2. 初始环境检查
     println!("\n[阶段 2/6] 步骤一：执行初始环境检测 (detect)...");
     let initial_report = detect(&game_dir).expect("检测失败");
-    println!("  - Unity 版本: {:?}", initial_report.unity_version.as_ref().map(|v| &v.raw));
+    println!(
+        "  - Unity 版本: {:?}",
+        initial_report.unity_version.as_ref().map(|v| &v.raw)
+    );
     println!("  - 运行时: {:?}", initial_report.runtime_type);
     println!("  - 架构: {:?}", initial_report.architecture);
-    println!("  - 当前已装框架: {:?}", initial_report.installed_frameworks);
+    println!(
+        "  - 当前已装框架: {:?}",
+        initial_report.installed_frameworks
+    );
 
     // 3. 安全模拟卸载已有的 BepInEx
     println!("\n[阶段 3/6] 步骤二：执行现有 BepInEx 与引导器卸载清理...");
@@ -56,8 +64,13 @@ async fn main() {
 
     // 再次检测确认已卸载
     let after_uninstall_report = detect(&game_dir).expect("二次检测失败");
-    println!("  - 卸载后已装框架状态: {:?}", after_uninstall_report.installed_frameworks);
-    assert!(!after_uninstall_report.installed_frameworks.contains(&"BepInEx".to_string()));
+    println!(
+        "  - 卸载后已装框架状态: {:?}",
+        after_uninstall_report.installed_frameworks
+    );
+    assert!(!after_uninstall_report
+        .installed_frameworks
+        .contains(&"BepInEx".to_string()));
     println!("  ✔ 验证成功：BepInEx 已完全移除！");
 
     // 4. 评估并获取推荐构建
@@ -113,17 +126,27 @@ async fn main() {
     }
 
     let manifest = TransactionExecutor::execute(&plan).expect("原子安装执行失败");
-    println!("  ✔ 原子安装事务成功完成！清单版本: {}", manifest.package_version);
+    println!(
+        "  ✔ 原子安装事务成功完成！清单版本: {}",
+        manifest.package_version
+    );
 
     // 最终全量检测验收
     println!("\n============================================================");
     println!("  最终全量检测与安装结果验证");
     println!("============================================================");
     let final_report = detect(&game_dir).expect("最终检测失败");
-    println!("  - 最终框架检测结果: {:?}", final_report.installed_frameworks);
+    println!(
+        "  - 最终框架检测结果: {:?}",
+        final_report.installed_frameworks
+    );
     println!("  - 最终置信度: {:?}", final_report.overall_confidence);
-    assert!(final_report.installed_frameworks.contains(&"BepInEx".to_string()));
-    assert!(final_report.installed_frameworks.contains(&"Doorstop".to_string()));
+    assert!(final_report
+        .installed_frameworks
+        .contains(&"BepInEx".to_string()));
+    assert!(final_report
+        .installed_frameworks
+        .contains(&"Doorstop".to_string()));
     println!("\n  🎉 整个流水线（初始检测 -> 安全卸载 -> 重新匹配 -> 获取构建 -> Zip解压 -> 原子安装 -> 终态验证）全部圆满通过！");
 
     // 清理沙盒
@@ -164,10 +187,12 @@ fn create_mock_bepinex_zip(dest: &Path) -> PathBuf {
     zip.write_all(b"[General]\ntarget_assembly=BepInEx\\core\\BepInEx.Unity.Mono.Preloader.dll\n")
         .unwrap();
 
-    zip.start_file("BepInEx/core/BepInEx.Core.dll", options).unwrap();
+    zip.start_file("BepInEx/core/BepInEx.Core.dll", options)
+        .unwrap();
     zip.write_all(b"bepinex_core_binary").unwrap();
 
-    zip.start_file("BepInEx/core/BepInEx.Unity.Mono.Preloader.dll", options).unwrap();
+    zip.start_file("BepInEx/core/BepInEx.Unity.Mono.Preloader.dll", options)
+        .unwrap();
     zip.write_all(b"preloader_binary").unwrap();
 
     zip.finish().unwrap();

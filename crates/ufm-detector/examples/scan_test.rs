@@ -4,7 +4,9 @@ use ufm_detector::detect;
 use ufm_registry::BepInExRegistry;
 
 fn main() {
-    let target_path = "/run/media/ub/系统/Users/asus/Downloads/Telegram Desktop/3D!かすたむオカズメーカー/3D!かすたむオカズメーカー/GameCore";
+    let args: Vec<String> = std::env::args().collect();
+    let default_path = "/run/media/ub/系统/Users/asus/Downloads/Telegram Desktop/3D!かすたむオカズメーカー/3D!かすたむオカズメーカー/GameCore".to_string();
+    let target_path = args.get(1).unwrap_or(&default_path);
     println!("=== 1. UFM 核心引擎正在扫描路径 ===");
     println!("路径: {}\n", target_path);
 
@@ -72,7 +74,10 @@ fn main() {
         println!("  未找到完全匹配的推荐构建！");
     }
 
-    println!("\n候选评估列表 (总计 {} 项):", compat_report.assessments.len());
+    println!(
+        "\n候选评估列表 (总计 {} 项):",
+        compat_report.assessments.len()
+    );
     for a in &compat_report.assessments {
         println!("  - 构建: {} (状态: {:?})", a.build.id, a.status);
         for w in &a.warnings {

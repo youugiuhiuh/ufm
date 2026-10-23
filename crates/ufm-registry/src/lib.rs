@@ -111,7 +111,7 @@ impl BepInExRegistry {
                 Architecture::X64,
                 TargetPlatform::Windows,
                 "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityIL2CPP_x64_6.0.0-pre.1.zip",
-                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "b5ac213ee70b029bda1353a82b067d89709ec1a55ec9b775779c2813f3d84212",
             ).with_filename("BepInEx_UnityIL2CPP_x64_6.0.0-pre.1.zip"),
             BepInExBuild::new(
                 "bepinex-v6.0.0-pre.1-win-x86-il2cpp",
@@ -121,7 +121,7 @@ impl BepInExRegistry {
                 Architecture::X86,
                 TargetPlatform::Windows,
                 "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityIL2CPP_x86_6.0.0-pre.1.zip",
-                "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+                "1cc048c216a1e1b6fc1b41f7e4ebf86d8843671107724dadc6a30112e6c6abd3",
             ).with_filename("BepInEx_UnityIL2CPP_x86_6.0.0-pre.1.zip"),
             BepInExBuild::new(
                 "bepinex-v6.0.0-pre.1-win-x64-mono",
@@ -131,7 +131,7 @@ impl BepInExRegistry {
                 Architecture::X64,
                 TargetPlatform::Windows,
                 "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityMono_x64_6.0.0-pre.1.zip",
-                "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+                "5107fcb9c8b35cf42bf61474226529eb9072696f539f7e9ac3646a0bffd267fc",
             ).with_filename("BepInEx_UnityMono_x64_6.0.0-pre.1.zip"),
             BepInExBuild::new(
                 "bepinex-v6.0.0-pre.1-win-x86-mono",
@@ -141,7 +141,7 @@ impl BepInExRegistry {
                 Architecture::X86,
                 TargetPlatform::Windows,
                 "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.1/BepInEx_UnityMono_x86_6.0.0-pre.1.zip",
-                "fc94a7d45f6d728340f11123d4d88e6100f165ac4feb16900da788604131f0e6",
+                "ae55440e689a967188b8e2ce88e9775793a26e497feeaa9eb3e43bfd5b470499",
             ).with_filename("BepInEx_UnityMono_x86_6.0.0-pre.1.zip"),
             BepInExBuild::new(
                 "bepinex-v6.0.0-pre.1-linux-x64-il2cpp",
